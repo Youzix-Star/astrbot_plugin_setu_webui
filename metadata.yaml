@@ -1,0 +1,7 @@
+name: astrbot_plugin_setu_webui
+display_name: 随机色图
+
+desc: 在 WebUI 中通过 Lolicon API / UApiPro / Bing 壁纸获取随机图片，勾选群后一键发送。
+version: 1.2.0
+author: Youzix-Star & DeepSeek
+repo: https://github.com/Youzix-Star/astrbot_plugin_setu_webui
