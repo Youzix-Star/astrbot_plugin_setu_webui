@@ -24,6 +24,7 @@ const uapiTypeSelect = document.getElementById('uapiType');
 const modeBtns = document.querySelectorAll('.mode-btn');
 const quickSection = document.getElementById('quickSection');
 const blocksSection = document.getElementById('blocksSection');
+const logsSection = document.getElementById('logsSection');
 
 const saveConfigBtn = document.getElementById('saveConfigBtn');
 const deleteConfigBtn = document.getElementById('deleteConfigBtn');
@@ -38,6 +39,24 @@ const saveCmdBtn = document.getElementById('saveCmdBtn');
 const deleteCmdBtn = document.getElementById('deleteCmdBtn');
 const cmdSelect = document.getElementById('cmdSelect');
 
+const logsList = document.getElementById('logsList');
+const logsCount = document.getElementById('logsCount');
+const logsPage = document.getElementById('logsPage');
+const logsPrevBtn = document.getElementById('logsPrevBtn');
+const logsNextBtn = document.getElementById('logsNextBtn');
+const refreshLogsBtn = document.getElementById('refreshLogsBtn');
+
+const logDetailModal = document.getElementById('logDetailModal');
+const logDetailClose = document.getElementById('logDetailClose');
+const detailTime = document.getElementById('detailTime');
+const detailUser = document.getElementById('detailUser');
+const detailGroup = document.getElementById('detailGroup');
+const detailSource = document.getElementById('detailSource');
+const detailTag = document.getElementById('detailTag');
+const detailResult = document.getElementById('detailResult');
+const detailPrompt = document.getElementById('detailPrompt');
+const detailDetail = document.getElementById('detailDetail');
+
 let allImages = [];
 let selectedImages = new Set();
 let allGroups = [];
@@ -45,6 +64,8 @@ let selectedGroups = new Set();
 let timer = null;
 let currentSteps = [];
 let editingCmdName = '';
+let currentLogPage = 1;
+let totalLogs = 0;
 
 function toast(msg, type) {
   const map = { success: 'check_circle', error: 'error', info: 'info' };
@@ -65,9 +86,13 @@ modeBtns.forEach(btn => {
     const mode = btn.dataset.mode;
     quickSection.classList.toggle('hidden', mode !== 'quick');
     blocksSection.classList.toggle('hidden', mode !== 'blocks');
+    logsSection.classList.toggle('hidden', mode !== 'logs');
     if (mode === 'blocks') {
       refreshAvailablePresets();
       refreshCmdList();
+    }
+    if (mode === 'logs') {
+      loadLogs();
     }
   });
 });
@@ -553,6 +578,86 @@ deleteCmdBtn.addEventListener('click', async () => {
 saveConfigBtn.addEventListener('click', saveConfig);
 deleteConfigBtn.addEventListener('click', deleteConfig);
 configSelect.addEventListener('change', loadConfig);
+
+// ─── 调用记录 ────────────────────────────
+
+async function loadLogs(page) {
+  if (page !== undefined) currentLogPage = page;
+  try {
+    const r = await bridge.apiGet('llm_logs', { page: currentLogPage, limit: 20 });
+    const logs = r.logs || [];
+    totalLogs = r.total || 0;
+    logsCount.textContent = `共 ${totalLogs} 条`;
+    logsPage.textContent = `第 ${currentLogPage} 页`;
+    logsPrevBtn.disabled = currentLogPage <= 1;
+    logsNextBtn.disabled = currentLogPage * 20 >= totalLogs;
+
+    if (logs.length === 0) {
+      logsList.innerHTML = '<div class="empty-row">暂无调用记录</div>';
+      return;
+    }
+
+    let h = '';
+    logs.forEach((log, idx) => {
+      const statusClass = log.result === '成功' ? 'success' : 'fail';
+      const realIdx = (currentLogPage - 1) * 20 + idx;
+      h += `<div class="log-item" data-index="${realIdx}" style="cursor:pointer;">
+        <div class="log-status ${statusClass}"></div>
+        <div class="log-info">
+          <div class="log-time">${log.time}</div>
+          <div class="log-source">${log.source}${log.tag ? ' · ' + log.tag : ''}</div>
+          <div class="log-detail">${log.detail || ''}</div>
+        </div>
+        <div class="log-user">${log.group || ''}</div>
+      </div>`;
+    });
+    logsList.innerHTML = h;
+    
+    // 点击查看详情
+    logsList.querySelectorAll('.log-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const index = parseInt(item.dataset.index);
+        showLogDetail(index);
+      });
+    });
+  } catch (e) {
+    logsList.innerHTML = `<div class="empty-row">加载失败: ${e.message}</div>`;
+  }
+}
+
+refreshLogsBtn.addEventListener('click', () => loadLogs(1));
+logsPrevBtn.addEventListener('click', () => { if (currentLogPage > 1) loadLogs(currentLogPage - 1); });
+logsNextBtn.addEventListener('click', () => { if (currentLogPage * 20 < totalLogs) loadLogs(currentLogPage + 1); });
+
+// ─── 调用详情弹窗 ────────────────────────
+
+async function showLogDetail(index) {
+  try {
+    const r = await bridge.apiGet('llm_log_detail', { index });
+    const log = r.log;
+    detailTime.textContent = log.time;
+    detailUser.textContent = log.user;
+    detailGroup.textContent = log.group;
+    detailSource.textContent = log.source;
+    detailTag.textContent = log.tag || '(无)';
+    detailResult.textContent = log.result;
+    detailPrompt.textContent = log.prompt || '(无)';
+    detailDetail.textContent = log.detail || '(无)';
+    logDetailModal.classList.remove('hidden');
+  } catch (e) {
+    toast('加载详情失败: ' + e.message, 'error');
+  }
+}
+
+logDetailClose.addEventListener('click', () => {
+  logDetailModal.classList.add('hidden');
+});
+
+logDetailModal.addEventListener('click', (e) => {
+  if (e.target === logDetailModal) {
+    logDetailModal.classList.add('hidden');
+  }
+});
 
 toggleSource();
 await bridge.ready();

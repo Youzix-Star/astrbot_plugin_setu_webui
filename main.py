@@ -5,6 +5,7 @@ import tempfile
 import os
 import base64
 import random
+from datetime import datetime
 from pathlib import Path
 from astrbot.api.all import *
 from astrbot.api.event import filter, AstrMessageEvent
@@ -28,6 +29,7 @@ PLUGIN_NAME = "astrbot_plugin_setu_webui"
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
+        self.llm_call_logs = []
         context.register_web_api(f"/{PLUGIN_NAME}/fetch", self.handle_fetch, ["POST"], "获取图片")
         context.register_web_api(f"/{PLUGIN_NAME}/groups", self.handle_groups, ["GET"], "群列表")
         context.register_web_api(f"/{PLUGIN_NAME}/send", self.handle_send, ["POST"], "发送图片")
@@ -39,6 +41,8 @@ class MyPlugin(Star):
         context.register_web_api(f"/{PLUGIN_NAME}/get_command", self.handle_get_command, ["GET"], "获取指令")
         context.register_web_api(f"/{PLUGIN_NAME}/delete_command", self.handle_delete_command, ["POST"], "删除指令")
         context.register_web_api(f"/{PLUGIN_NAME}/list_commands", self.handle_list_commands, ["GET"], "列出指令")
+        context.register_web_api(f"/{PLUGIN_NAME}/llm_logs", self.handle_llm_logs, ["GET"], "获取LLM调用记录")
+        context.register_web_api(f"/{PLUGIN_NAME}/llm_log_detail", self.handle_llm_log_detail, ["GET"], "获取LLM调用详情")
 
     def _get_client(self):
         for platform in self.context.platform_manager.platform_insts:
@@ -97,9 +101,7 @@ class MyPlugin(Star):
         num = int(body.get("num", 5))
         if num < 1: num = 1
         if num > 20: num = 20
-
         logger.info(f"[handle_fetch] source={source}, num={num}, body={json.dumps(body, ensure_ascii=False)}")
-
         try:
             data = await self._fetch(source, body)
             logger.info(f"[handle_fetch] result count={len(data)}")
@@ -123,21 +125,14 @@ class MyPlugin(Star):
         if ar: params["aspectRatio"] = ar
         if body.get("excludeAI"): params["excludeAI"] = True
         if body.get("dsc"): params["dsc"] = True
-
-        logger.info(f"[lolicon] request params: {json.dumps(params, ensure_ascii=False)}")
-
         async with aiohttp.ClientSession() as s:
             async with s.post("https://api.lolicon.app/setu/v2", json=params, timeout=15) as r:
                 data = await r.json()
                 items = data.get("data", [])
-                logger.info(f"[lolicon] response: {json.dumps(data, ensure_ascii=False)[:2000]}")
-                logger.info(f"[lolicon] items count={len(items)}")
                 out = []
-                for i, item in enumerate(items):
+                for item in items:
                     urls = item.get("urls", {})
-                    logger.info(f"[lolicon] item[{i}] urls={json.dumps(urls, ensure_ascii=False)}")
                     img_url = urls.get("original", "") or urls.get("regular", "") or urls.get("small", "") or urls.get("thumb", "") or urls.get("mini", "")
-                    logger.info(f"[lolicon] item[{i}] selected_url={img_url}")
                     out.append({
                         "url": img_url,
                         "thumb": urls.get("thumb") or urls.get("small") or urls.get("regular") or img_url,
@@ -145,26 +140,22 @@ class MyPlugin(Star):
                         "author": item.get("author", ""),
                         "pid": item.get("pid", "")
                     })
-                logger.info(f"[lolicon] returning {len(out)} images")
                 return out
 
     async def fetch_uapi(self, body):
         category = body.get("uapiCategory", "acg")
         img_type = body.get("uapiType", "")
         num = min(int(body.get("num", 5)), 10)
-        logger.info(f"[uapi] category={category}, type={img_type}, num={num}")
         out = []
         for i in range(num):
             try:
                 ts = int(__import__("time").time() * 1000)
                 url = f"https://uapis.cn/api/v1/random/image?category={category}&_={ts}"
                 if img_type: url += f"&type={img_type}"
-                logger.info(f"[uapi] requesting: {url}")
                 async with aiohttp.ClientSession() as s:
                     async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         ct = resp.headers.get("Content-Type", "")
                         img_data = await resp.read()
-                        logger.info(f"[uapi] resp status={resp.status}, content-type={ct}, size={len(img_data)}")
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
@@ -176,28 +167,23 @@ class MyPlugin(Star):
             except Exception as e:
                 logger.warning(f"[uapi] fetch failed[{i}]: {e}")
                 continue
-        logger.info(f"[uapi] returning {len(out)} images")
         return out
 
     async def fetch_bing(self, body):
         num = min(int(body.get("num", 5)), 8)
         bing_source = body.get("bingSource", "uapi")
-        logger.info(f"[bing] source={bing_source}, num={num}")
         out = []
         if bing_source == "official":
             for i in range(num):
                 try:
                     url = f"https://www.bing.com/HPImageArchive.aspx?format=js&idx={i}&n=1&mkt=zh-CN"
-                    logger.info(f"[bing] official request: {url}")
                     async with aiohttp.ClientSession() as s:
                         async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                             data = await resp.json()
                     images = data.get("images", [])
-                    logger.info(f"[bing] official response images={len(images)}")
                     if images:
                         img = images[0]
                         img_url = f"https://www.bing.com{img['url']}"
-                        logger.info(f"[bing] official image url={img_url}")
                         out.append({"url": img_url, "thumb": img_url.replace("1920x1080", "640x480"), "title": img.get("title", "Bing 壁纸"), "author": img.get("copyright", ""), "pid": f"bing_official_{img.get('startdate', i)}"})
                 except Exception as e:
                     logger.warning(f"[bing] official fetch failed[{i}]: {e}")
@@ -207,38 +193,31 @@ class MyPlugin(Star):
                 try:
                     rp = "&random=true" if num > 1 else ""
                     url = f"https://uapis.cn/api/v1/image/bing-daily?format=json&resolution=1080{rp}"
-                    logger.info(f"[bing] uapi request: {url}")
                     async with aiohttp.ClientSession() as s:
                         async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                             data = await resp.json()
                     img_url = data.get("image_url") or data.get("image_url_4k") or data.get("image_url_1080") or ""
-                    logger.info(f"[bing] uapi response img_url={img_url}, title={data.get('title', '')}")
                     if img_url:
                         out.append({"url": img_url, "thumb": data.get("image_url_1080") or img_url, "title": data.get("title", "Bing 壁纸"), "author": data.get("copyright", ""), "pid": f"bing_{data.get('date', i)}"})
                 except Exception as e:
                     logger.warning(f"[bing] uapi fetch failed[{i}]: {e}")
                     continue
-        logger.info(f"[bing] returning {len(out)} images")
         return out
 
     async def fetch_imgapi(self, body):
         zd = body.get("imgapiZd", "")
         fl = body.get("imgapiFl", "")
         num = min(int(body.get("num", 5)), 10)
-        logger.info(f"[imgapi] zd={zd}, fl={fl}, num={num}")
         out = []
         for i in range(num):
             try:
                 ts = int(__import__("time").time() * 1000)
                 url = f"https://imgapi.cn/api.php?zd={zd}&fl={fl}&gs=json"
-                logger.info(f"[imgapi] request: {url}")
                 async with aiohttp.ClientSession() as s:
                     async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         data = await resp.json(content_type=None)
-                logger.info(f"[imgapi] response: {data}")
                 img_url = data.get("imgurl", "") or data.get("img", "") or data.get("url", "")
                 if img_url:
-                    logger.info(f"[imgapi] downloading: {img_url}")
                     async with aiohttp.ClientSession() as s:
                         async with s.get(img_url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                             img_data = await resp.read()
@@ -250,28 +229,22 @@ class MyPlugin(Star):
                     tmp.write(img_data); tmp.close()
                     b64 = base64.b64encode(img_data).decode("ascii")
                     out.append({"url": tmp.name, "thumb": f"data:{ct};base64,{b64}", "title": f"imgapi {fl or '壁纸'}", "author": f"{data.get('width', '?')}x{data.get('height', '?')}", "pid": f"imgapi_{i}"})
-                else:
-                    logger.warning(f"[imgapi] no image url in response")
             except Exception as e:
                 logger.warning(f"[imgapi] fetch failed[{i}]: {e}")
                 continue
-        logger.info(f"[imgapi] returning {len(out)} images")
         return out
 
     async def fetch_dmoe(self, body):
         num = min(int(body.get("num", 5)), 10)
-        logger.info(f"[dmoe] num={num}")
         out = []
         for i in range(num):
             try:
                 ts = int(__import__("time").time() * 1000)
                 url = f"https://www.dmoe.cc/random.php?t={ts}"
-                logger.info(f"[dmoe] request: {url}")
                 async with aiohttp.ClientSession() as s:
                     async with s.get(url, timeout=30, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         img_data = await resp.read()
                         ct = resp.headers.get("Content-Type", "image/jpeg")
-                        logger.info(f"[dmoe] resp status={resp.status}, content-type={ct}, size={len(img_data)}, final_url={resp.url}")
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
@@ -282,14 +255,12 @@ class MyPlugin(Star):
             except Exception as e:
                 logger.warning(f"[dmoe] fetch failed[{i}]: {e}")
                 continue
-        logger.info(f"[dmoe] returning {len(out)} images")
         return out
 
     async def fetch_loliapi(self, body):
         category = body.get("loliapiCategory", "random")
         num = min(int(body.get("num", 5)), 10)
         all_cats = ["acg", "bg", "acg/pc", "acg/pe", "acg/pp"]
-        logger.info(f"[loliapi] category={category}, num={num}")
         out = []
         for i in range(num):
             try:
@@ -297,12 +268,10 @@ class MyPlugin(Star):
                 else: cat = category
                 ts = int(__import__("time").time() * 1000)
                 url = f"https://www.loliapi.com/{cat}/?_={ts}"
-                logger.info(f"[loliapi] request: {url}")
                 async with aiohttp.ClientSession() as s:
                     async with s.get(url, timeout=30, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         img_data = await resp.read()
                         ct = resp.headers.get("Content-Type", "image/jpeg")
-                        logger.info(f"[loliapi] resp status={resp.status}, content-type={ct}, size={len(img_data)}")
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
@@ -314,7 +283,6 @@ class MyPlugin(Star):
             except Exception as e:
                 logger.warning(f"[loliapi] fetch failed[{i}]: {e}")
                 continue
-        logger.info(f"[loliapi] returning {len(out)} images")
         return out
 
     async def fetch_alcy(self, body):
@@ -322,29 +290,23 @@ class MyPlugin(Star):
         compress = body.get("alcyCompress", "800")
         num = min(int(body.get("num", 5)), 10)
         all_cats = ["ycy", "moez", "ai", "ysz", "pc", "moe", "fj", "bd", "ys", "acg", "mp", "moemp", "ysmp", "aimp", "fjmp", "tx", "lai", "xhl"]
-        logger.info(f"[alcy] category={category}, compress={compress}, num={num}")
         out = []
         for i in range(num):
             try:
                 if category == "random": cat = random.choice(all_cats)
                 else: cat = category
                 url = f"https://t.alcy.cc/json?{cat}=1"
-                logger.info(f"[alcy] request: {url}")
                 async with aiohttp.ClientSession() as s:
-                    async with s.get(url, timeout=15) as resp:
+                    async with s.get(url, timeout=60) as resp:
                         data = await resp.json(content_type=None)
                 item = data.get("data", {})
                 link = item.get("link", "")
-                logger.info(f"[alcy] response link={link}")
                 if link:
-                    logger.info(f"[alcy] downloading: {link}")
                     async with aiohttp.ClientSession() as s:
-                        async with s.get(link, timeout=30, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://t.alcy.cc/"}) as resp:
+                        async with s.get(link, timeout=60, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://t.alcy.cc/"}) as resp:
                             img_data = await resp.read()
-                            logger.info(f"[alcy] download size={len(img_data)}")
                     if compress != "none":
                         img_data = self._compress_image(img_data, int(compress))
-                        logger.info(f"[alcy] after compress size={len(img_data)}")
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
                     tmp.write(img_data); tmp.close()
                     b64 = base64.b64encode(img_data).decode("ascii")
@@ -352,7 +314,6 @@ class MyPlugin(Star):
             except Exception as e:
                 logger.warning(f"[alcy] fetch failed[{i}]: {e}")
                 continue
-        logger.info(f"[alcy] returning {len(out)} images")
         return out
 
     def _compress_image(self, img_data, max_width=800, quality=80):
@@ -380,7 +341,6 @@ class MyPlugin(Star):
             body = {}
         ids = body.get("group_ids", [])
         images = body.get("images", [])
-        logger.info(f"[send] groups={ids}, images_count={len(images)}")
         if not ids or not images:
             return error_response("no data", 400)
         client = self._get_client()
@@ -395,9 +355,7 @@ class MyPlugin(Star):
                 for idx, img in enumerate(images):
                     url = img.get("url", "")
                     if not url:
-                        logger.warning(f"[send] image[{idx}] has empty url, skipping")
                         continue
-                    logger.info(f"[send] image[{idx}] url={url[:100]}")
                     if not url.startswith("http"):
                         msg.append({"type": "image", "data": {"file": f"file://{url}"}})
                     else:
@@ -405,7 +363,6 @@ class MyPlugin(Star):
                             async with aiohttp.ClientSession() as s:
                                 async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Referer": "https://www.pixiv.net/"}) as resp:
                                     img_data = await resp.read()
-                                    logger.info(f"[send] downloaded {len(img_data)} bytes from {url[:80]}")
                             suffix = ".jpg"
                             if url.lower().endswith(".png"): suffix = ".png"
                             elif url.lower().endswith(".gif"): suffix = ".gif"
@@ -419,10 +376,8 @@ class MyPlugin(Star):
                             msg.append({"type": "image", "data": {"file": url}})
                     t = img.get("title", ""); a = img.get("author", ""); p = img.get("pid", "")
                     if t or a or p: msg.append({"type": "text", "data": {"text": f"\n{t} - {a} ({p})"}})
-                logger.info(f"[send] sending to group {gid}, msg_parts={len(msg)}")
                 await client.api.call_action("send_group_msg", group_id=int(gid), message=msg)
                 ok += 1
-                logger.info(f"[send] success to {gid}")
             except Exception as e:
                 logger.warning(f"[send] send to {gid} failed: {e}")
                 fail += 1
@@ -430,7 +385,6 @@ class MyPlugin(Star):
                 for fp in temp_files:
                     try: os.unlink(fp)
                     except: pass
-        logger.info(f"[send] done: ok={ok}, fail={fail}")
         return json_response({"ok": ok, "fail": fail})
 
     async def _fetch(self, source, body):
@@ -444,19 +398,15 @@ class MyPlugin(Star):
 
     async def _do_send_image(self, event, img, source_name=""):
         url = img.get("url", "")
-        logger.info(f"[do_send] url={url[:100] if url else 'EMPTY'}")
         if not url:
-            logger.error(f"[do_send] URL is empty, img={img}")
             await event.send("获取的图片 URL 为空，请重试")
             return
         title = img.get("title", "")
         author = img.get("author", "")
         if url.startswith("http"):
-            logger.info(f"[do_send] downloading {url[:80]}")
             async with aiohttp.ClientSession() as s:
                 async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.pixiv.net/"}) as resp:
                     img_data = await resp.read()
-                    logger.info(f"[do_send] downloaded {len(img_data)} bytes, status={resp.status}")
             suffix = ".jpg"
             if url.lower().endswith(".png"): suffix = ".png"
             elif url.lower().endswith(".gif"): suffix = ".gif"
@@ -471,16 +421,11 @@ class MyPlugin(Star):
         if source_name: text += f"\n🔗 来源: {source_name}"
         client = self._get_client()
         if client:
-            logger.info(f"[do_send] sending to group {event.get_group_id()}")
             try:
                 await client.api.call_action("send_group_msg",
                     group_id=int(event.get_group_id()),
-                    message=[
-                        {"type": "image", "data": {"file": f"file://{file_path}"}},
-                        {"type": "text", "data": {"text": f"\n{text}"}}
-                    ]
+                    message=[{"type": "image", "data": {"file": f"file://{file_path}"}}, {"type": "text", "data": {"text": f"\n{text}"}}]
                 )
-                logger.info(f"[do_send] send success")
             except Exception as e:
                 logger.error(f"[do_send] send failed: {e}")
         if url.startswith("http"):
@@ -559,6 +504,110 @@ class MyPlugin(Star):
     async def handle_list_commands(self):
         return json_response({"commands": self._load_commands()})
 
+    # ─── LLM 调用记录 ──────────────────────
+
+    async def handle_llm_logs(self):
+        page = int(request.query.get("page", 1))
+        limit = int(request.query.get("limit", 20))
+        start = (page - 1) * limit
+        end = start + limit
+        data = self.llm_call_logs[start:end] if start < len(self.llm_call_logs) else []
+        return json_response({"logs": data, "total": len(self.llm_call_logs), "page": page, "limit": limit})
+
+    async def handle_llm_log_detail(self):
+        index = int(request.query.get("index", -1))
+        if index < 0 or index >= len(self.llm_call_logs):
+            return error_response("not found", 404)
+        return json_response({"log": self.llm_call_logs[index]})
+
+    # ─── LLM 工具 ──────────────────────────
+
+    @filter.llm_tool(name="get_setu")
+    async def tool_get_setu(self, event: AstrMessageEvent, source: str, tag: str) -> MessageEventResult:
+        '''获取随机二次元/风景/美女图片并发送到群聊。
+
+        Args:
+            source(string): 图源。lolicon(Pixiv插画) / uapipro(多分类壁纸) / bing(风景壁纸) / imgapi(随机壁纸) / dmoe(二次元) / loliapi(多分类二次元) / alcy(栗次元多分类)
+            tag(string): 搜索标签或分类。不同图源的可选值如下：
+
+【lolicon】标签名，多个用逗号分隔，如"原神,泳装"
+
+【uapipro】主分类：
+- acg=二次元 landscape=风景 anime=动漫混合 pc_wallpaper=电脑壁纸
+- mobile_wallpaper=手机壁纸 general_anime=动漫图 ai_drawing=AI绘画
+- bq=表情包 furry=福瑞
+主分类为 acg 时可附加子分类：pc=PC端 mb=移动端
+主分类为 bq 时可附加子分类：xiongmao=熊猫 waiguoren=歪果仁 maomao=猫猫 ikun eciyuan=二次元
+主分类为 furry 时可附加子分类：z4k szs8k s4k 4k
+子分类写法：主分类+子分类，如 acg+pc 表示二次元PC端壁纸
+
+【bing】无需标签，留空即可
+
+【imgapi】分类名：meizi=美女 dongman=动漫 fengjing=风景 suiji=随机
+
+【loliapi】分类名：acg=二次元自适应 bg=背景墙纸 acg/pc=电脑壁纸 acg/pe=手机壁纸 acg/pp=二次元头像
+
+【alcy/栗次元】
+- ycy=二次元自适应 moez=萌版自适应 ai=AI自适应 ysz=原神自适应
+- pc=PC横图 moe=萌版横图 fj=风景横图 bd=白底横图 ys=原神横图
+- acg=ACG动图 mp=移动竖图 moemp=萌版竖图 ysmp=原神竖图
+- aimp=AI竖图 fjmp=风景竖图 tx=头像方图 lai=七濑胡桃 xhl=小狐狸
+
+【dmoe】无需标签，留空即可
+        '''
+        yield event.plain_result("正在获取图片，请稍候...")
+        prompt = event.message_str
+        log_entry = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "user": str(event.get_sender_id()),
+            "group": str(event.get_group_id()),
+            "source": source or "lolicon",
+            "tag": tag or "",
+            "prompt": prompt,
+            "result": "",
+            "detail": ""
+        }
+        try:
+            source = source or "lolicon"
+            if source == "alcy":
+                body = {"source": source, "num": 1, "alcyCategory": tag if tag else "random"}
+            elif source == "loliapi":
+                body = {"source": source, "num": 1, "loliapiCategory": tag if tag else "random"}
+            elif source == "uapipro":
+                if tag and "+" in tag:
+                    cat, sub = tag.split("+", 1)
+                    body = {"source": source, "num": 1, "uapiCategory": cat, "uapiType": sub}
+                else:
+                    body = {"source": source, "num": 1, "uapiCategory": tag if tag else "acg"}
+            elif source == "imgapi":
+                body = {"source": source, "num": 1, "imgapiFl": tag if tag else "dongman"}
+            elif source == "bing":
+                body = {"source": source, "num": 1}
+            elif source == "dmoe":
+                body = {"source": source, "num": 1}
+            else:
+                body = {"source": source, "num": 1, "r18": 0}
+                if tag:
+                    body["tag"] = [t.strip() for t in tag.split(",") if t.strip()]
+            data = await self._fetch(source, body)
+            if not data:
+                log_entry["result"] = "失败"
+                log_entry["detail"] = "没有找到图片"
+                yield event.plain_result("没有找到图片 😢")
+                return
+            await self._do_send_image(event, data[0], source)
+            log_entry["result"] = "成功"
+            log_entry["detail"] = data[0].get("title", "") + " - " + data[0].get("author", "")
+        except Exception as e:
+            logger.error(f"tool setu failed: {e}")
+            log_entry["result"] = "失败"
+            log_entry["detail"] = str(e)
+            yield event.plain_result(f"获取失败: {str(e)}")
+        finally:
+            self.llm_call_logs.insert(0, log_entry)
+            if len(self.llm_call_logs) > 100:
+                self.llm_call_logs = self.llm_call_logs[:100]
+
     # ─── 指令系统 ──────────────────────────
 
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
@@ -567,6 +616,7 @@ class MyPlugin(Star):
         parts = event.message_str.split()
         source = "lolicon"
         tags = []
+        extra_params = {}
 
         if len(parts) > 1:
             cmd = parts[1].lower()
@@ -576,17 +626,37 @@ class MyPlugin(Star):
                 names = [p.stem for p in config_dir.glob("*.json")] if config_dir.exists() else []
                 cmds = self._load_commands()
                 config_tip = ""
-                if names: config_tip = f"\n\n▶ /setu <配置名>\n  快捷调用已保存的配置：\n    " + "\n    ".join(names)
+                if names: config_tip = "\n".join(f"    · {n}" for n in names)
                 cmd_tip = ""
-                if cmds: cmd_tip = f"\n\n▶ 复杂指令：\n  " + "\n  ".join(f"/setu {c['name']} ({'随机' if c['mode']=='random' else '分条' if c['mode']=='all' else '合并'} {len(c['presets'])}个配置)" for c in cmds)
+                if cmds: cmd_tip = "\n".join(f"    · {c['name']}（{'随机' if c['mode']=='random' else '分条' if c['mode']=='all' else '合并'} {len(c['presets'])}个步骤）" for c in cmds)
                 yield event.plain_result(
-                    "📖 随机图片指令帮助\n\n"
+                    "📖 随机图片插件 · 完整帮助\n\n"
+                    "━━━ 💬 自然语言调用 ━━━\n\n"
+                    "直接对我说「发张二次元图」「来张原神」「看风景」「小狐狸」等，\n"
+                    "AI 会自动理解并调用插件获取图片，无需记指令！\n\n"
+                    "━━━ 📟 指令用法 ━━━\n\n"
                     "▶ /setu\n  默认 Lolicon 随机图\n\n"
-                    "▶ /setu <标签>\n  Lolicon 按标签搜索\n  例：/setu 百合\n  例：/setu 百合,原神\n\n"
-                    "▶ /setu <图源>\n  切换图源：\n  uapi / bing / imgapi / dmoe / loliapi / alcy\n\n"
-                    "▶ /setu list\n  查看已保存的配置\n"
-                    f"{config_tip}{cmd_tip}\n\n"
-                    "▶ /setu help\n  显示本帮助"
+                    "▶ /setu <标签>\n  Lolicon 按标签搜索，如 /setu 百合\n\n"
+                    "▶ /setu <图源>\n  切换图源，如 /setu alcy\n\n"
+                    "▶ /setu <图源> <分类>\n  切换图源并指定分类，如 /setu alcy xhl\n\n"
+                    "▶ /setu list\n  查看已保存的配置预设和指令\n\n"
+                    "▶ /setu help\n  显示本帮助\n\n"
+                    "━━━ 🎨 图源 & 分类一览 ━━━\n\n"
+                    "🎨 Lolicon\n  标签：任意关键词，如 原神,泳装\n  逗号表示 AND 搜索，竖线 | 表示 OR\n\n"
+                    "📦 UApiPro\n  主分类：二次元(acg) 风景(landscape) 动漫混合(anime)\n          电脑壁纸(pc_wallpaper) 手机壁纸(mobile_wallpaper)\n          动漫图(general_anime) AI绘画(ai_drawing)\n          表情包(bq) 福瑞(furry)\n  子分类（用+连接）：acg+pc acg+mb\n    bq+xiongmao bq+waiguoren bq+maomao bq+ikun bq+eciyuan\n    furry+z4k furry+szs8k furry+s4k furry+4k\n\n"
+                    "🌿 LoliAPI\n  acg(自适应) bg(墙纸) acg/pc(电脑) acg/pe(手机) acg/pp(头像)\n\n"
+                    "🎯 栗次元\n  ycy(自适应) moez(萌版) ai(AI) ysz(原神)\n  pc(横图) moe(萌横) fj(风景) bd(白底) ys(原横)\n  acg(动图) mp(竖图) moemp(萌竖) ysmp(原竖)\n  aimp(AI竖) fjmp(风竖) tx(头像) lai(胡桃) xhl(狐狸)\n\n"
+                    "🖼️ imgapi\n  meizi(美女) dongman(动漫) fengjing(风景) suiji(随机)\n\n"
+                    "🏔️ Bing · 🎨 dmoe\n  无分类，直接 /setu bing 或 /setu dmoe\n\n"
+                    "━━━ 🧩 WebUI 功能 ━━━\n\n"
+                    "在插件 WebUI 中还有更多功能：\n\n"
+                    "🔍 快速获取\n  可视化调参，7 个图源完整自定义选项，\n  选择图片后勾选群一键发送\n\n"
+                    "🧱 积木编程\n  ① 调好参数 → 保存为配置预设（积木块）\n  ② 组合多个积木块 → 保存为指令\n  ③ 支持三种输出模式：\n     · 随机选一个：每次随机挑一个积木块执行\n     · 分条输出：每个积木块发一条消息\n     · 合并输出：所有图片合并成一条消息\n  ④ 保存后可通过 /setu <指令名> 在群聊中调用\n\n"
+                    "📋 调用记录\n  查看 AI 调用插件的记录，点击可查看详情，\n  方便调试和追踪使用情况\n\n"
+                    "━━━ 📁 已保存的配置 ━━━\n"
+                    + (config_tip if config_tip else "    暂无，在 WebUI 调好参数后点击「保存配置」即可创建\n")
+                    + ("\n" if config_tip else "")
+                    + ("━━━ 📋 已保存的指令 ━━━\n" + cmd_tip + "\n" if cmd_tip else "")
                 )
                 return
 
@@ -601,7 +671,6 @@ class MyPlugin(Star):
                 else: yield event.plain_result("\n".join(lines))
                 return
 
-            # 尝试加载自定义指令
             elif not cmd.startswith("/"):
                 cmds = self._load_commands()
                 for cmd_obj in cmds:
@@ -610,7 +679,6 @@ class MyPlugin(Star):
                         mode = cmd_obj.get("mode", "random")
                         if not presets: break
                         config_dir = self._config_dir()
-
                         if mode == "all":
                             yield event.plain_result(f"「{parts[1]}」指令执行中（共{len(presets)}个步骤）...")
                             results = []
@@ -632,12 +700,9 @@ class MyPlugin(Star):
                                 except Exception as e:
                                     results.append(f"❌ {preset_name}（{str(e)[:20]}）")
                             yield event.plain_result("执行完毕：\n" + "\n".join(results))
-
                         elif mode == "merge":
                             yield event.plain_result(f"「{parts[1]}」指令执行中（共{len(presets)}个步骤，合并发送）...")
-                            msg_parts = []
-                            temp_files = []
-                            errors = []
+                            msg_parts = []; temp_files = []; errors = []
                             for preset_name in presets:
                                 config_path = config_dir / f"{preset_name}.json"
                                 if not config_path.exists():
@@ -654,9 +719,7 @@ class MyPlugin(Star):
                                         if not url:
                                             errors.append(f"❌ {preset_name}（空URL）")
                                             continue
-                                        title = img.get("title", "")
-                                        author = img.get("author", "")
-
+                                        title = img.get("title", ""); author = img.get("author", "")
                                         if url.startswith("http"):
                                             async with aiohttp.ClientSession() as s:
                                                 async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.pixiv.net/"}) as resp:
@@ -667,22 +730,18 @@ class MyPlugin(Star):
                                             elif url.lower().endswith(".webp"): suffix = ".webp"
                                             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                                             tmp.write(img_data); tmp.close()
-                                            temp_files.append(tmp.name)
-                                            file_path = tmp.name
+                                            temp_files.append(tmp.name); file_path = tmp.name
                                         else:
                                             file_path = url
-
                                         msg_parts.append({"type": "image", "data": {"file": f"file://{file_path}"}})
                                         text = ""
                                         if title: text = f"📷 {title}"
                                         if author: text += f" 👤 {author}"
-                                        if text:
-                                            msg_parts.append({"type": "text", "data": {"text": f"\n[{preset_name}] {text}\n"}})
+                                        if text: msg_parts.append({"type": "text", "data": {"text": f"\n[{preset_name}] {text}\n"}})
                                     else:
                                         errors.append(f"❌ {preset_name}（无图片）")
                                 except Exception as e:
                                     errors.append(f"❌ {preset_name}（{str(e)[:20]}）")
-
                             if msg_parts:
                                 client = self._get_client()
                                 if client:
@@ -695,7 +754,6 @@ class MyPlugin(Star):
                             result_text = f"合并发送完成（{len(presets)}个步骤）"
                             if errors: result_text += "\n" + "\n".join(errors)
                             yield event.plain_result(result_text)
-
                         else:
                             selected = random.choice(presets)
                             yield event.plain_result(f"「{parts[1]}」→ 随机选中「{selected}」")
@@ -716,7 +774,6 @@ class MyPlugin(Star):
                                 yield event.plain_result(f"发送失败: {str(e)}")
                         return
 
-                # 尝试加载配置预设
                 config_path = self._config_dir() / f"{parts[1]}.json"
                 if config_path.exists():
                     with open(config_path, "r", encoding="utf-8") as f:
@@ -734,19 +791,40 @@ class MyPlugin(Star):
                         yield event.plain_result(f"发送失败: {str(e)}")
                         return
 
-            if cmd in ["uapi", "uapipro"]: source = "uapipro"
-            elif cmd == "bing": source = "bing"
-            elif cmd == "imgapi": source = "imgapi"
-            elif cmd == "dmoe": source = "dmoe"
-            elif cmd == "loliapi": source = "loliapi"
-            elif cmd == "alcy": source = "alcy"
+            if cmd in ["uapi", "uapipro"]:
+                source = "uapipro"
+                if len(parts) > 2:
+                    tag_val = parts[2].lower()
+                    if "+" in tag_val:
+                        cat, sub = tag_val.split("+", 1)
+                        extra_params["uapiCategory"] = cat
+                        extra_params["uapiType"] = sub
+                    else:
+                        extra_params["uapiCategory"] = tag_val
+            elif cmd == "bing":
+                source = "bing"
+            elif cmd == "imgapi":
+                source = "imgapi"
+                if len(parts) > 2:
+                    extra_params["imgapiFl"] = parts[2].lower()
+            elif cmd == "dmoe":
+                source = "dmoe"
+            elif cmd == "loliapi":
+                source = "loliapi"
+                if len(parts) > 2:
+                    extra_params["loliapiCategory"] = parts[2].lower().replace("-", "/")
+            elif cmd == "alcy":
+                source = "alcy"
+                if len(parts) > 2:
+                    extra_params["alcyCategory"] = parts[2].lower()
             else:
                 tag_str = " ".join(parts[1:])
                 tags = [t.strip() for t in tag_str.replace("，", ",").split(",") if t.strip()]
 
         yield event.plain_result("正在获取图片，请稍候...")
         try:
-            params = {"source": source, "num": 1, "r18": 0, "tag": tags}
+            params = {"source": source, "num": 1, "r18": 0, "tag": tags, **extra_params}
+            params = {k: v for k, v in params.items() if v is not None and v != "" and v != []}
             data = await self._fetch(source, params)
             if not data:
                 yield event.plain_result("没有找到图片 😢")
