@@ -1,6 +1,6 @@
 <script setup>
 import DefaultTheme from 'vitepress/theme'
-import Twikoo from './Twikoo.vue'
+import Twikoo from './components/Twikoo.vue'
 
 const { Layout } = DefaultTheme
 </script>
