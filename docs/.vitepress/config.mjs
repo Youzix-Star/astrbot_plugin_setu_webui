@@ -28,6 +28,7 @@ export default defineConfig({
         items: [
           { text: '快速开始', link: '/guide/' },
           { text: '快速部署与使用', link: '/guide/deploy' },
+          { text: '指令速查', link: '/guide/commands' },
         ],
       },
     ],
