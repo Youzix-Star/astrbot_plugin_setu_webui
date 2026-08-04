@@ -33,6 +33,11 @@ export default defineConfig({
       },
     ],
     search: { provider: 'local' },
+    /* 本页导航：显示 h2 + 可展开的 h3 */
+    outline: {
+      level: [2, 3],
+      label: '本页导航',
+    },
     footer: {
       message: '云笺寻图 · 名字来源 · 陌袹陌',
       copyright: 'AGPLv3'
