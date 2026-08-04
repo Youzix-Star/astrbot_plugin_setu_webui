@@ -9,3 +9,10 @@
   --vp-font-family-base: 'Noto Sans SC', 'Inter', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --vp-font-family-heading: 'Noto Sans SC', 'Inter', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
+
+/* 评论区 */
+#tcomment {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--vp-c-divider);
+}
