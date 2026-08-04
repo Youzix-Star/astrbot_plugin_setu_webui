@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>云笺寻图 · 指令速查</title>
+<meta name="description" content="云笺寻图 指令快速检索：输入关键词，点一下复制指令。">
+<link rel="icon" type="image/png" href="./logo.png">
+<link rel="preconnect" href="https://fonts.loli.net">
+<link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
+<link href="https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.loli.net/icon?family=Material+Icons&display=block" rel="stylesheet">
+<style>
+  :root, [data-theme="light"] {
+    --primary: #2c5f8a; --on-primary: #fff;
+    --primary-container: #d2e3f5; --on-primary-container: #001c31; --primary-deep: #1f4a6e;
+    --bg: #f5f7fa; --surface: #fff; --surface-low: #eef1f5;
+    --text: #1a1c1e; --text-2: #4a5058; --text-3: #9aa1aa;
+    --border: #e5e8ee; --outline: #c3c7cf;
+    --success-bg: #d1fae5; --success: #10b981;
+    --sh-1: 0 1px 3px rgba(15,30,45,.06); --sh-2: 0 8px 20px rgba(15,30,45,.10), 0 2px 6px rgba(15,30,45,.05);
+    --sh-3: 0 20px 40px rgba(15,30,45,.16), 0 4px 10px rgba(15,30,45,.08);
+    --primary-shadow: rgba(44,95,138,.35);
+  }
+  [data-theme="dark"] {
+    --primary: #a0cff4; --on-primary: #003355;
+    --primary-container: #0d4b73; --on-primary-container: #cfe5ff; --primary-deep: #7eb6e0;
+    --bg: #1c1b1f; --surface: #211f26; --surface-low: #2b2930;
+    --text: #e6e1e5; --text-2: #cac4d0; --text-3: #938f99;
+    --border: #49454f; --outline: #49454f;
+    --success-bg: #0f3d2a; --success: #34d399;
+    --sh-1: 0 1px 3px rgba(0,0,0,.45); --sh-2: 0 8px 20px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4);
+    --sh-3: 0 20px 40px rgba(0,0,0,.65); --primary-shadow: rgba(160,207,244,.35);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    overflow-x: hidden; -webkit-font-smoothing: antialiased;
+  }
+  .material-icons { font-size: 20px; vertical-align: middle; line-height: 1; user-select: none; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* 主题切换 · 圆形遮罩 */
+  html.theme-switching body, html.theme-switching body * { transition: none !important; }
+  html.theme-switching .theme-veil { transition: clip-path .5s cubic-bezier(.4,0,.2,1), opacity .18s ease !important; }
+  .theme-veil {
+    position: fixed; top: 0; left: 0; overflow: hidden; z-index: 9999;
+    pointer-events: none; background: var(--bg);
+    clip-path: circle(0px at var(--x) var(--y));
+    transition: clip-path .5s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+    will-change: clip-path;
+  }
+  .theme-veil .veil-inner { height: 100%; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  .theme-veil .veil-inner::-webkit-scrollbar { display: none; }
+
+  .appbar {
+    position: sticky; top: 0; z-index: 100;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--outline);
+  }
+  .appbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+  .brand-logo { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+  .icon-btn {
+    width: 40px; height: 40px; border: none; border-radius: 50%;
+    background: transparent; color: var(--text-2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .18s, transform .18s, color .18s;
+  }
+  .icon-btn:hover { background: var(--surface-low); color: var(--primary); transform: scale(1.08); }
+  .icon-btn:active { transform: scale(.92); }
+  .icon-btn .material-icons { font-size: 22px; }
+
+  .hero { padding: 44px 0 8px; text-align: center; animation: fadeUp .5s both; }
+  .hero h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 800; letter-spacing: .5px; }
+  .hero h1 .dot { color: var(--primary); }
+  .hero .sub { margin-top: 8px; color: var(--text-2); font-size: 14px; }
+
+  .search-wrap { max-width: 480px; margin: 22px auto 6px; padding: 0 20px; animation: fadeUp .5s .1s both; }
+  .search {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-low); border-radius: 16px; padding: 0 16px; height: 48px;
+    transition: background .2s, box-shadow .2s;
+  }
+  .search:focus-within { background: var(--surface); box-shadow: 0 0 0 2px var(--primary); }
+  .search .material-icons { color: var(--text-3); font-size: 22px; }
+  .search input {
+    flex: 1; min-width: 0; height: 100%; border: none; outline: none;
+    background: transparent; color: var(--text); font: inherit; font-size: 15px;
+  }
+  .search input::placeholder { color: var(--text-3); }
+  .search .clear {
+    border: none; background: transparent; color: var(--text-3); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%; display: none;
+    align-items: center; justify-content: center;
+  }
+  .search .clear.show { display: flex; }
+  .search .clear:hover { color: var(--primary); background: var(--surface); }
+
+  main { padding: 24px 0 8px; }
+  .count-hint { margin: 6px 2px 10px; font-size: 12px; color: var(--text-3); }
+
+  details { border-top: 1px solid var(--outline); }
+  details:last-child { border-bottom: 1px solid var(--outline); }
+  summary {
+    list-style: none; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    padding: 13px 2px; font-size: 14px; font-weight: 600; color: var(--text-2);
+    user-select: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary .material-icons { font-size: 18px; color: var(--primary); transition: transform .2s; }
+  details[open] summary .chev { transform: rotate(180deg); }
+  summary .cat-num {
+    margin-left: auto; font-size: 12px; color: var(--text-3);
+    background: var(--surface-low); border-radius: 999px; padding: 2px 10px;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 2px 14px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-low); border-radius: 999px; padding: 6px 12px;
+    font-size: 13px; color: var(--text-2);
+    cursor: pointer; user-select: none;
+    transition: background .15s, transform .15s, box-shadow .15s;
+  }
+  .chip code {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 700; font-size: 12.5px; color: var(--primary-deep);
+  }
+  [data-theme="dark"] .chip code { color: var(--primary); }
+  .chip .copy-mini { font-size: 15px; color: var(--text-3); margin-left: 4px; opacity: 1; transition: transform .15s, color .15s; }
+  .chip:hover { background: var(--primary-container); transform: translateY(-1px); box-shadow: 0 2px 6px var(--primary-shadow); }
+  .chip:hover .copy-mini { color: var(--primary); transform: scale(1.15); }
+  .chip:active { transform: scale(.95); }
+
+  mark.search-hit {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    color: inherit; border-radius: 3px; padding: 0 2px;
+    box-shadow: 0 0 0 1px var(--primary); font-weight: 600;
+  }
+  .empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 14px; }
+
+  .footer {
+    margin-top: 40px; padding: 26px 0 40px;
+    border-top: 1px solid var(--outline); text-align: center;
+  }
+  .footer .note { color: var(--text-3); font-size: 13px; }
+  .footer .doc-link { color: var(--primary); text-decoration: none; font-weight: 600; }
+  .footer .doc-link:hover { text-decoration: underline; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(16px);
+    background: var(--text); color: var(--bg);
+    padding: 10px 18px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    box-shadow: var(--sh-3); z-index: 999;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s cubic-bezier(.22,1,.36,1);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 520px) { .hero { padding-top: 32px; } }
+</style>
+</head>
+<body>
+
+  <div class="appbar">
+    <div class="wrap">
+      <div class="brand"><img class="brand-logo" src="./logo.png" alt="云笺寻图">云笺寻图 · 指令速查</div>
+      <button class="icon-btn" id="themeToggle" title="切换主题" type="button">
+        <span class="material-icons" id="themeIcon">brightness_auto</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>指令速查<span class="dot">.</span></h1>
+    <div class="sub">输入关键词过滤，点一下复制指令</div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search">
+      <span class="material-icons">search</span>
+      <input type="text" id="searchInput" placeholder="搜索：原神、风景、furry、xhl..." autocomplete="off" />
+      <button class="clear" id="clearBtn" type="button"><span class="material-icons">close</span></button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <div class="count-hint" id="countHint"></div>
+    <div id="list"></div>
+  </main>
+
+  <footer class="footer">
+    <div class="note">详见文档 <a class="doc-link" href="https://docs.youzix.top/" target="_blank" rel="noopener">docs.youzix.top</a></div>
+  </footer>
+
+  <div class="toast" id="toast">已复制</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ─── 指令数据（可在此增删） ───
+  const SOURCES = [
+    { name: '通用', cmds: [
+      ['/setu', '随机来一张（默认 Lolicon）'],
+      ['/setu random', '全随机 50 选 1'],
+      ['/setu list', '查看配置与指令'],
+      ['/setu help', '杂志风帮助海报'],
+    ]},
+    { name: 'Lolicon', cmds: [
+      ['/setu', '随机来一张'],
+      ['/setu 原神', '按标签搜'],
+    ]},
+    { name: '栗次元', cmds: [
+      ['/setu alcy ycy', '二次元自适应'], ['/setu alcy moez', '萌版自适应'],
+      ['/setu alcy ai', 'AI自适应'], ['/setu alcy ysz', '原神自适应'],
+      ['/setu alcy pc', 'PC横图'], ['/setu alcy moe', '萌版横图'],
+      ['/setu alcy fj', '风景横图'], ['/setu alcy bd', '白底横图'],
+      ['/setu alcy ys', '原神横图'], ['/setu alcy acg', '动图'],
+      ['/setu alcy mp', '移动竖图'], ['/setu alcy moemp', '萌版竖图'],
+      ['/setu alcy ysmp', '原神竖图'], ['/setu alcy aimp', 'AI竖图'],
+      ['/setu alcy fjmp', '风景竖图'], ['/setu alcy tx', '头像'],
+      ['/setu alcy lai', '七濑胡桃'], ['/setu alcy xhl', '小狐狸'],
+    ]},
+    { name: 'UApiPro', cmds: [
+      ['/setu uapipro acg', '二次元'], ['/setu uapipro landscape', '风景'],
+      ['/setu uapipro anime', '动漫混合'], ['/setu uapipro pc_wallpaper', '电脑壁纸'],
+      ['/setu uapipro mobile_wallpaper', '手机壁纸'], ['/setu uapipro general_anime', '动漫图'],
+      ['/setu uapipro ai_drawing', 'AI绘画'], ['/setu uapipro bq', '表情包'],
+      ['/setu uapipro furry', '福瑞'], ['/setu uapipro acg+pc', '二次元电脑壁纸'],
+      ['/setu uapipro acg+mb', '二次元手机壁纸'], ['/setu uapipro bq+xiongmao', '熊猫表情'],
+      ['/setu uapipro bq+waiguoren', '歪果仁表情'], ['/setu uapipro bq+maomao', '猫猫表情'],
+      ['/setu uapipro bq+ikun', 'ikun'], ['/setu uapipro bq+eciyuan', '二次元表情'],
+      ['/setu uapipro furry+z4k', '画质Z'], ['/setu uapipro furry+szs8k', '画质S'],
+      ['/setu uapipro furry+s4k', '画质S+'], ['/setu uapipro furry+4k', '画质4K'],
+    ]},
+    { name: 'LoliAPI', cmds: [
+      ['/setu loliapi acg', '二次元自适应'], ['/setu loliapi bg', '背景墙纸'],
+      ['/setu loliapi acg/pc', '电脑壁纸'], ['/setu loliapi acg/pe', '手机壁纸'],
+      ['/setu loliapi acg/pp', '二次元头像'],
+    ]},
+    { name: 'imgapi', cmds: [
+      ['/setu imgapi meizi', '美女'], ['/setu imgapi dongman', '动漫'],
+      ['/setu imgapi fengjing', '风景'], ['/setu imgapi suiji', '随机'],
+    ]},
+    { name: 'Bing', cmds: [['/setu bing', '每日风景']] },
+    { name: 'dmoe', cmds: [['/setu dmoe', '二次元']] },
+  ];
+
+  // ─── 主题切换（圆形遮罩） ───
+  const themeToggle = document.getElementById('themeToggle');
+  const root = document.documentElement;
+  function applyTheme(t) { root.setAttribute('data-theme', t); try { localStorage.setItem('yunjian-theme', t); } catch (e) {} }
+  let saved = null; try { saved = localStorage.getItem('yunjian-theme'); } catch (e) {}
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+
+  themeToggle.addEventListener('click', () => {
+    if (document.querySelector('.theme-veil')) return;
+    const target = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    const rect = themeToggle.getBoundingClientRect();
+    const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+    const scrollY = window.scrollY;
+    const vw = document.documentElement.clientWidth;
+    root.classList.add('theme-switching');
+
+    const veil = document.createElement('div');
+    veil.className = 'theme-veil'; veil.setAttribute('data-theme', target);
+    veil.setAttribute('aria-hidden', 'true');
+    veil.style.width = vw + 'px'; veil.style.height = window.innerHeight + 'px';
+    veil.style.setProperty('--x', x + 'px'); veil.style.setProperty('--y', y + 'px');
+    veil.style.clipPath = `circle(0px at ${x}px ${y}px)`;
+
+    const clone = document.body.cloneNode(true);
+    clone.querySelectorAll('.theme-veil').forEach(v => v.remove());
+    clone.querySelectorAll('*').forEach(el => { el.style.animation = 'none'; });
+    clone.style.overflow = 'visible';
+
+    const inner = document.createElement('div');
+    inner.className = 'veil-inner'; inner.appendChild(clone);
+    veil.appendChild(inner); document.body.appendChild(veil);
+    inner.scrollTop = scrollY;
+
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 40;
+    requestAnimationFrame(() => { veil.style.clipPath = `circle(${radius}px at ${x}px ${y}px)`; });
+    setTimeout(() => {
+      applyTheme(target);
+      veil.style.opacity = '0';
+      setTimeout(() => { veil.remove(); root.classList.remove('theme-switching'); }, 180);
+    }, 520);
+  });
+
+  // ─── Toast（复制后不变色） ───
+  const toast = document.getElementById('toast');
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+  }
+  function fallbackCopy(text, done, fail) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      const sel = document.getSelection(); const prev = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy'); document.body.removeChild(ta);
+      if (prev) { sel.removeAllRanges(); sel.addRange(prev); }
+      ok ? done() : fail();
+    } catch (e) { fail(); }
+  }
+  function copyText(text) {
+    const done = () => showToast('已复制：' + text);
+    const fail = () => showToast('复制失败，请手动复制');
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done, fail));
+    } else { fallbackCopy(text, done, fail); }
+  }
+
+  // ─── 渲染 + 检索 ───
+  const list = document.getElementById('list');
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+  const countHint = document.getElementById('countHint');
+
+  function clearHighlights() {
+    document.querySelectorAll('mark.search-hit').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  }
+  function highlight(el, q) {
+    if (!q) return;
+    const ql = q.toLowerCase();
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const targets = [];
+    while (walker.nextNode()) {
+      const t = walker.currentNode;
+      if (!t.nodeValue) continue;
+      if (t.parentNode && t.parentNode.classList && t.parentNode.classList.contains('search-hit')) continue;
+      if (t.nodeValue.toLowerCase().includes(ql)) targets.push(t);
+    }
+    targets.forEach(node => {
+      const parent = node.parentNode;
+      const text = node.nodeValue, lower = text.toLowerCase();
+      const frag = document.createDocumentFragment();
+      let idx = 0, start = 0;
+      while ((idx = lower.indexOf(ql, start)) !== -1) {
+        if (idx > start) frag.appendChild(document.createTextNode(text.slice(start, idx)));
+        const mark = document.createElement('mark');
+        mark.className = 'search-hit';
+        mark.textContent = text.slice(idx, idx + ql.length);
+        frag.appendChild(mark);
+        start = idx + ql.length;
+      }
+      if (start < text.length) frag.appendChild(document.createTextNode(text.slice(start)));
+      parent.replaceChild(frag, node);
+    });
+  }
+
+  function render(q) {
+    q = (q || '').trim().toLowerCase();
+    clearHighlights();
+    let html = '', total = 0;
+    SOURCES.forEach(src => {
+      const matched = src.cmds.filter(c => !q || (c[0] + ' ' + c[1]).toLowerCase().includes(q));
+      if (matched.length === 0) return;
+      const chips = matched.map(c =>
+        `<span class="chip" data-cmd="${esc(c[0])}"><code>${esc(c[0])}</code>${esc(c[1])}<span class="material-icons copy-mini">content_copy</span></span>`
+      ).join('');
+      html += `<details ${q ? (matched.length === src.cmds.length ? 'open' : '') : ''}>
+        <summary><span class="material-icons chev">expand_more</span>${esc(src.name)}<span class="cat-num">${matched.length}</span></summary>
+        <div class="tags">${chips}</div></details>`;
+      total += matched.length;
+    });
+    list.innerHTML = html || '<div class="empty">没有匹配的指令 🤔</div>';
+    countHint.textContent = q ? `找到 ${total} 条指令` : `共 ${total} 条指令 · 点击复制`;
+
+    list.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => copyText(chip.dataset.cmd));
+      if (q) highlight(chip, q);
+    });
+    if (q) {
+      list.querySelectorAll('details').forEach(d => {
+        d.open = d.textContent.toLowerCase().includes(q);
+      });
+    }
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  searchInput.addEventListener('input', () => render(searchInput.value));
+  clearBtn.addEventListener('click', () => { searchInput.value = ''; render(''); searchInput.focus(); });
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchInput.blur(); } });
+
+  render('');
+})();
+</script>
+</body>
+</html>
