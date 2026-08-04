@@ -5,6 +5,9 @@ hero:
   name: 云笺寻图
   text: 随机图片插件文档
   tagline: 不用记指令，直接说人话，图自己会来。
+  image:
+    src: /logo.png
+    alt: 云笺寻图
   actions:
     - theme: brand
       text: 快速开始
