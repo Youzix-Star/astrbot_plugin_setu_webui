@@ -19,7 +19,14 @@ export default defineConfig({
     logo: '/logo.png',
     nav: [
       { text: '首页', link: '/' },
-      { text: '指南', link: '/guide/' },
+      {
+        text: '指南',
+        items: [
+          { text: '快速开始', link: '/guide/' },
+          { text: '快速部署与使用', link: '/guide/deploy' },
+          { text: '指令速查', link: '/guide/commands' },
+        ],
+      },
       { text: 'GitHub', link: 'https://github.com/Youzix-Star/astrbot_plugin_nbsoutu_webui' },
     ],
     sidebar: [
@@ -33,11 +40,6 @@ export default defineConfig({
       },
     ],
     search: { provider: 'local' },
-    /* 本页导航：显示 h2 + 可展开的 h3 */
-    outline: {
-      level: [2, 3],
-      label: '本页导航',
-    },
     footer: {
       message: '云笺寻图 · 名字来源 · 陌袹陌',
       copyright: 'AGPLv3'
