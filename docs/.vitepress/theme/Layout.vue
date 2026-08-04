@@ -9,9 +9,9 @@ const { page } = useData()
 
 <template>
   <Layout>
-    <!-- 文章页底部插入评论；首页 Hero 不显示 -->
+    <!-- 所有页面底部都显示评论区 -->
     <template #doc-after>
-      <Twikoo v-if="page.relativePath !== 'index.md'" :key="page.relativePath" />
+      <Twikoo :key="page.relativePath" />
     </template>
   </Layout>
 </template>
