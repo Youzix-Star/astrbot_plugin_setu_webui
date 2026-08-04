@@ -1,24 +1,32 @@
 <script setup>
-import { onMounted, nextTick } from 'vue'
+import { onMounted } from 'vue'
+import { useRouter } from 'vitepress'
 
 // 你的 Twikoo 后端（Netlify 云函数）
 const envId = 'https://youzix.dpdns.org/.netlify/functions/twikoo'
+const router = useRouter()
+let twikooMod = null
+
+function initTwikoo() {
+  if (!twikooMod) return
+  try { twikooMod.init({ envId }) } catch (e) {}
+}
+
+// 路由切换后重新 init，让 twikoo 重新按新路径拉取并替换评论
+function onRoute(to) {
+  if (to) setTimeout(initTwikoo, 1000)
+}
 
 onMounted(async () => {
-  await nextTick()
-  // 只在浏览器环境加载 twikoo，避免 SSR 时 navigator 未定义报错
-  if (typeof window !== 'undefined') {
-    const twikoo = await import('twikoo')
-    twikoo.init({
-      envId,
-      el: '#tcomment',
-      path: window.location.pathname, // 按页面路径区分评论
-      lang: 'zh-CN',
-    })
-  }
+  if (typeof window === 'undefined') return
+  twikooMod = await import('twikoo')
+  initTwikoo()
+  router.onAfterRouteChange = onRoute
 })
 </script>
 
 <template>
-  <div id="tcomment"></div>
+  <div class="comment-container vp-raw">
+    <div id="twikoo"></div>
+  </div>
 </template>
