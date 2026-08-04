@@ -1,0 +1,5 @@
+/* 首页 Hero 图片尺寸（默认 192px，改小到你满意） */
+:root {
+  --vp-home-hero-image-width: 140px;
+  --vp-home-hero-image-height: 140px;
+}
