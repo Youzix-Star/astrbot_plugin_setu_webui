@@ -1,26 +1,24 @@
----
-layout: home
+# 快速开始
 
-hero:
-  name: 云笺寻图
-  text: 随机图片插件文档
-  tagline: 不用记指令，直接说人话，图自己会来。
-  image:
-    src: /logo.gif
-    alt: 云笺寻图
-  actions:
-    - theme: brand
-      text: 快速开始
-      link: /guide/
-    - theme: alt
-      text: GitHub 仓库
-      link: https://github.com/Youzix-Star/astrbot_plugin_nbsoutu_webui
+**云笺寻图**（`astrbot_plugin_nbsoutu_webui`）是 AstrBot 的随机图片插件：
 
-features:
-  - title: 7 大图源
-    details: Lolicon · UApiPro · Bing · imgapi · dmoe · LoliAPI · 栗次元
-  - title: 全随机
-    details: 50 选 1 公平随机池，每张独立抽取并附带可复用指令
-  - title: 三入口统一日志
-    details: WebUI / 指令 / LLM 三入口统一调用记录，详情一键复制
+- 支持 **7 大图源**：Lolicon、UApiPro、Bing、imgapi、dmoe、LoliAPI、栗次元
+- 指令、LLM 工具、WebUI **三种方式**取图
+- 获取后**勾选群一键发送**
+
+详细的教程请看下面这些文章：
+
+* [**快速部署与使用**](/guide/deploy) —— 从零把插件跑起来：AstrBot + NapCat 配置、常见问题排查
+* [**指令速查**](/guide/commands) —— 本插件的绝大部分指令
+* [**配置与积木编程**](/guide/presets) —— 把常用设置存成积木，一句话召唤整套图
+* [**WebUI 指南**](/guide/webui) —— 快速获取 / 积木编程 / 调用记录 怎么用
+
+> 想看更多？以下内容**规划中**，敬请期待
+>
+> * 图源说明 —— 每个图源的详细介绍与注意事项
+
 ---
+
+::: warning
+本项目**全部**代码皆由 DeepSeek V4 Flash 生成，注意审查
+:::
