@@ -1,8 +1,8 @@
 <script setup>
 import { onMounted, nextTick } from 'vue'
 
-// 你的 Twikoo 后端（Netlify 部署，域名 youzix.dpdns.org）
-const envId = 'https://youzix.dpdns.org'
+// 你的 Twikoo 后端（Netlify 云函数）
+const envId = 'https://youzix.dpdns.org/.netlify/functions/twikoo'
 
 onMounted(async () => {
   await nextTick()
