@@ -18,7 +18,17 @@ export default defineConfig({
     logo: '/logo.png',
     nav: [
       { text: '首页', link: '/' },
+      { text: '指南', link: '/guide/' },
       { text: 'GitHub', link: 'https://github.com/Youzix-Star/astrbot_plugin_nbsoutu_webui' },
+    ],
+    sidebar: [
+      {
+        text: '指南',
+        items: [
+          { text: '快速开始', link: '/guide/' },
+          { text: '快速部署与使用', link: '/guide/deploy' },
+        ],
+      },
     ],
     search: { provider: 'local' },
     footer: {
