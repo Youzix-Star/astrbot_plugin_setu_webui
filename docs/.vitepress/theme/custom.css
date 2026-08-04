@@ -1,5 +1,11 @@
-/* 首页 Hero 图片尺寸（默认 192px，改小到你满意） */
+/* 首页 Hero 图片尺寸 */
 :root {
   --vp-home-hero-image-width: 140px;
   --vp-home-hero-image-height: 140px;
+}
+
+/* Noto Sans SC 覆盖默认字体栈（正文 + 标题） */
+:root {
+  --vp-font-family-base: 'Noto Sans SC', 'Inter', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --vp-font-family-heading: 'Noto Sans SC', 'Inter', ui-sans-serif, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
