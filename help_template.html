@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.loli.net">
+<link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
+<link href="https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; }
+  body {
+    font-family:'Noto Sans SC','Noto Sans',-apple-system,sans-serif;
+    background:#faf7f2; color:#161616;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ── 报头 ── */
+  .masthead { padding:clamp(48px,7vw,84px) clamp(40px,6vw,72px) clamp(28px,4vw,44px); }
+  .mast-meta {
+    display:flex; justify-content:space-between; gap:16px;
+    font-size:clamp(15px,1.8vw,20px); font-weight:700; letter-spacing:.25em;
+    text-transform:uppercase; color:#8b8578;
+    border-top:4px solid #161616; padding-top:12px;
+    margin-bottom:clamp(30px,4.5vw,52px);
+  }
+  .masthead h1 {
+    font-family:'Noto Serif SC',serif;
+    font-size:clamp(64px,9.5vw,120px); font-weight:900; line-height:1.08; letter-spacing:.02em;
+  }
+  .masthead h1 .accent { color:#ff4d2e; }
+  .deck {
+    margin-top:clamp(18px,2.6vw,30px);
+    font-family:'Noto Serif SC',serif; font-style:italic;
+    font-size:clamp(26px,3.4vw,42px); color:#4a463f;
+  }
+  .mast-rule { height:2px; background:#161616; margin-top:clamp(30px,4.5vw,52px); }
+
+  /* ── 章节 ── */
+  .content { padding:0 clamp(40px,6vw,72px) clamp(40px,6vw,64px); }
+  .card { padding:clamp(32px,4.5vw,56px) 0; border-bottom:1px solid #e2dbcf; }
+  .card:last-child { border-bottom:none; }
+  .card-head { display:flex; align-items:center; gap:clamp(18px,2.6vw,30px); margin-bottom:clamp(20px,3vw,34px); }
+  .sec-num { font-family:'Noto Serif SC',serif; font-size:clamp(42px,5.2vw,64px); font-weight:900; line-height:1; color:#ff4d2e; }
+  .card-title { font-family:'Noto Serif SC',serif; font-size:clamp(36px,4.6vw,54px); font-weight:800; color:#161616; }
+  .card-body { display:flex; flex-direction:column; gap:12px; }
+
+  .msg-bubble {
+    font-family:'Noto Serif SC',serif;
+    font-size:clamp(27px,3.4vw,40px); line-height:2; color:#161616;
+    border-left:6px solid #ff4d2e;
+    padding:clamp(16px,2.4vw,24px) 0 clamp(16px,2.4vw,24px) clamp(22px,3vw,34px);
+  }
+  .msg-bubble b { font-weight:900; }
+
+  .cmd-row { display:flex; align-items:baseline; gap:16px; padding:clamp(12px,1.8vw,18px) 4px; flex-wrap:wrap; }
+  .cmd-row + .cmd-row { border-top:1px dashed #d9d1c4; }
+  code {
+    font-family:'JetBrains Mono','Consolas',monospace;
+    font-size:clamp(25px,3.1vw,37px); font-weight:700;
+    background:#161616; color:#fff;
+    padding:7px 16px; border-radius:6px; white-space:nowrap;
+  }
+  .cmd-desc { color:#6b665d; font-size:clamp(25px,3.1vw,36px); }
+  .cmd-name { font-family:'Noto Serif SC',serif; font-size:clamp(25px,3.1vw,37px); font-weight:800; min-width:130px; flex-shrink:0; }
+
+  /* ── 图源用法 ── */
+  .src-item { padding:14px 4px; border-bottom:1px dashed #d9d1c4; }
+  .src-item:last-child { border-bottom:none; }
+  .src-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .src-name { font-family:'Noto Serif SC',serif; font-size:clamp(26px,3.2vw,38px); font-weight:800; }
+  .src-code { font-family:'JetBrains Mono',monospace; font-size:clamp(17px,2.1vw,24px); font-weight:600; color:#8b8578; }
+  .src-example { font-size:clamp(17px,2.1vw,24px) !important; padding:5px 12px !important; }
+
+  /* 分类树形图 */
+  .tree { margin-top:12px; padding-left:24px; border-left:2px solid #e2dbcf;
+    display:flex; flex-direction:column; gap:8px; }
+  .tree-row { position:relative; }
+  .tree-row::before { content:''; position:absolute; left:-24px; top:15px;
+    width:10px; height:0; border-top:2px solid #e2dbcf; }
+  .tree-cat { display:block; font-family:'Noto Serif SC',serif; font-weight:800;
+    font-size:clamp(16px,2vw,24px); color:#161616; margin-bottom:4px; }
+  .tree-tags { display:flex; flex-wrap:wrap; gap:6px 14px; }
+  .src-cat { display:inline-flex; align-items:baseline; gap:7px;
+    font-size:clamp(17px,2.1vw,25px); color:#6b665d; line-height:1.7; }
+  .src-cat-code { font-family:'JetBrains Mono',monospace; font-weight:700;
+    font-size:clamp(15px,1.9vw,21px); color:#161616;
+    background:#ece6da; padding:2px 9px; border-radius:4px; white-space:nowrap; }
+  .src-cat.note { font-style:italic; color:#8b8578; }
+
+  .plain { font-size:clamp(25px,3.1vw,36px); line-height:2; color:#33302b; padding:8px 2px; }
+
+  /* ── 版权页脚 ── */
+  .footer {
+    background:#161616; color:#faf7f2;
+    padding:clamp(30px,4.4vw,52px) clamp(40px,6vw,72px);
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    font-family:'Noto Serif SC',serif; font-size:clamp(24px,3vw,34px); font-weight:700; letter-spacing:.08em;
+  }
+  .footer .foot-right { color:#9a9488; font-size:clamp(15px,1.9vw,21px); font-weight:500; letter-spacing:.25em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+  <div class="masthead">
+    <div class="mast-meta"><span>VOL. 01</span><span>涩图研究所 · 2026</span></div>
+    <h1>云笺寻图<br><span class="accent">使用指南</span></h1>
+    <div class="deck">不用记指令，直接说人话，图自己会来。</div>
+    <div class="mast-rule"></div>
+  </div>
+
+  <div class="content">
+    <!--SECTIONS-->
+  </div>
+
+  <div class="footer">
+    <span>云笺寻图</span>
+    <span class="foot-right">名字来源 · 陌袹陌 · 祝玩得开心</span>
+  </div>
+</body>
+</html>

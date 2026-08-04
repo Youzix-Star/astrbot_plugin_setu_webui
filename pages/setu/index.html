@@ -3,378 +3,316 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>随机图片</title>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <title>云笺寻图</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=block" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="page-header">
-    <div class="page-title-row">
-      <h1>随机图片</h1>
-      <span class="badge" id="totalBadge">v1.0</span>
-    </div>
-    <div class="page-subtitle">快速获取 · 积木编程 · 调用记录</div>
-  </div>
+  <div class="page">
 
-  <!-- ═══ 模式切换 ═══ -->
-  <div class="mode-bar">
-    <button class="mode-btn active" data-mode="quick">
-      <span class="material-icons">search</span> 快速获取
-    </button>
-    <button class="mode-btn" data-mode="blocks">
-      <span class="material-icons">widgets</span> 积木编程
-    </button>
-    <button class="mode-btn" data-mode="logs">
-      <span class="material-icons">history</span> 调用记录
-    </button>
-  </div>
-
-  <!-- ═══════════════════════════════════════════
-       快速获取
-       ═══════════════════════════════════════════ -->
-  <div id="quickSection">
-    <div class="config-panel">
-      <div class="config-row">
-        <span class="config-label">API</span>
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="source" value="lolicon" checked /><span>Lolicon</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="uapipro" /><span>UApiPro</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="bing" /><span>Bing</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="imgapi" /><span>imgapi</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="dmoe" /><span>dmoe</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="loliapi" /><span>LoliAPI</span></label>
-          <label class="radio-label"><input type="radio" name="source" value="alcy" /><span>栗次元</span></label>
-        </div>
+    <header class="page-header">
+      <div class="title-row">
+        <span class="material-icons title-icon">image</span>
+        <h1>云笺寻图</h1>
+        <span class="badge" id="totalBadge">v1.1</span>
       </div>
+      <div class="page-subtitle">快速获取 · 积木编程 · 调用记录</div>
+    </header>
 
-      <div class="source-group source-lolicon">
-        <div class="config-row">
-          <span class="config-label">R18</span>
+    <!-- 模式切换 -->
+    <div class="mode-slider-container active-quick" id="modeSlider">
+      <div class="mode-slider-bg"></div>
+      <div class="mode-slider-options">
+        <button class="mode-option" data-mode="quick" type="button"><span class="material-icons">search</span> 快速获取</button>
+        <button class="mode-option" data-mode="blocks" type="button"><span class="material-icons">widgets</span> 积木编程</button>
+        <button class="mode-option" data-mode="logs" type="button"><span class="material-icons">history</span> 调用记录</button>
+      </div>
+    </div>
+
+    <!-- ═══ 快速获取 ═══ -->
+    <div id="quickSection">
+      <div class="card">
+
+        <div class="form-row">
+          <span class="form-label">API</span>
           <div class="radio-group">
-            <label class="radio-label"><input type="radio" name="r18" value="0" checked /><span>关闭</span></label>
-            <label class="radio-label"><input type="radio" name="r18" value="1" /><span>R18</span></label>
-            <label class="radio-label"><input type="radio" name="r18" value="2" /><span>混合</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="lolicon" checked /><span>Lolicon</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="uapipro" /><span>UApiPro</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="bing" /><span>Bing</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="imgapi" /><span>imgapi</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="dmoe" /><span>dmoe</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="loliapi" /><span>LoliAPI</span></label>
+            <label class="radio-label"><input type="radio" name="source" value="alcy" /><span>栗次元</span></label>
           </div>
         </div>
-        <div class="config-row">
-          <span class="config-label">标签</span>
-          <input type="text" id="tagInput" class="text-input" placeholder="如 原神|崩坏, 泳装（| OR，逗号 AND）" />
-        </div>
-        <div class="config-row">
-          <span class="config-label">关键字</span>
-          <input type="text" id="keywordInput" class="text-input" placeholder="标题/作者/标签模糊匹配" />
-        </div>
-        <div class="config-row">
-          <span class="config-label">画师ID</span>
-          <input type="text" id="uidInput" class="text-input" placeholder="可选，逗号分隔" />
-        </div>
-        <div class="config-row">
-          <span class="config-label">图片规格</span>
-          <div class="radio-group">
-            <label class="radio-label"><input type="checkbox" name="size" value="original" checked /><span>原图 (original)</span></label>
-            <label class="radio-label"><input type="checkbox" name="size" value="regular" /><span>常规 (regular)</span></label>
-            <label class="radio-label"><input type="checkbox" name="size" value="small" /><span>小图 (small)</span></label>
-            <label class="radio-label"><input type="checkbox" name="size" value="thumb" /><span>缩略图 (thumb)</span></label>
-            <label class="radio-label"><input type="checkbox" name="size" value="mini" /><span>迷你 (mini)</span></label>
+
+        <div class="source-group source-lolicon">
+          <div class="form-row">
+            <span class="form-label">R18</span>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="r18" value="0" checked /><span>关闭</span></label>
+              <label class="radio-label"><input type="radio" name="r18" value="1" /><span>R18</span></label>
+              <label class="radio-label"><input type="radio" name="r18" value="2" /><span>混合</span></label>
+            </div>
+          </div>
+          <div class="form-row"><span class="form-label">标签</span><input type="text" id="tagInput" class="text-input" placeholder="如 原神|崩坏, 泳装（| OR，逗号 AND）" /></div>
+          <div class="form-row"><span class="form-label">关键字</span><input type="text" id="keywordInput" class="text-input" placeholder="标题/作者/标签模糊匹配" /></div>
+          <div class="form-row"><span class="form-label">画师ID</span><input type="text" id="uidInput" class="text-input" placeholder="可选，逗号分隔" /></div>
+          <div class="form-row">
+            <span class="form-label">图片规格</span>
+            <div class="radio-group">
+              <label class="radio-label"><input type="checkbox" name="size" value="original" checked /><span>原图</span></label>
+              <label class="radio-label"><input type="checkbox" name="size" value="regular" /><span>常规</span></label>
+              <label class="radio-label"><input type="checkbox" name="size" value="small" /><span>小图</span></label>
+              <label class="radio-label"><input type="checkbox" name="size" value="thumb" /><span>缩略图</span></label>
+              <label class="radio-label"><input type="checkbox" name="size" value="mini" /><span>迷你</span></label>
+            </div>
+          </div>
+          <div class="form-row"><span class="form-label">图片代理</span><input type="text" id="proxyInput" class="text-input" placeholder="默认 i.pixiv.re" /></div>
+          <div class="form-row"><span class="form-label">长宽比</span><input type="text" id="aspectRatioInput" class="text-input" placeholder="如 lt1（竖图） gt1（横图） eq1（正方形）" /></div>
+          <div class="form-row">
+            <label class="checkbox-all"><input type="checkbox" id="excludeAI" /><span>排除 AI 作品</span></label>
+            <label class="checkbox-all"><input type="checkbox" id="dsc" /><span>禁用缩写转换</span></label>
           </div>
         </div>
-        <div class="config-row">
-          <span class="config-label">图片代理</span>
-          <input type="text" id="proxyInput" class="text-input" placeholder="默认 i.pixiv.re" />
-        </div>
-        <div class="config-row">
-          <span class="config-label">长宽比</span>
-          <input type="text" id="aspectRatioInput" class="text-input" placeholder="如 lt1（竖图） gt1（横图） eq1（正方形）" />
-        </div>
-        <div class="config-row">
-          <label class="checkbox-all"><input type="checkbox" id="excludeAI" /><span>排除 AI 作品</span></label>
-          <label class="checkbox-all"><input type="checkbox" id="dsc" /><span>禁用缩写转换</span></label>
-        </div>
-      </div>
 
-      <div class="source-group source-uapipro hidden">
-        <div class="config-row">
-          <span class="config-label">分类</span>
-          <select id="uapiCategory" class="time-input" style="flex:1; width:auto; padding:8px 12px;">
-            <option value="acg">二次元 (acg)</option>
-            <option value="landscape">风景 (landscape)</option>
-            <option value="anime">动漫混合 (anime)</option>
-            <option value="pc_wallpaper">电脑壁纸 (pc_wallpaper)</option>
-            <option value="mobile_wallpaper">手机壁纸 (mobile_wallpaper)</option>
-            <option value="general_anime">动漫图 (general_anime)</option>
-            <option value="ai_drawing">AI绘画 (ai_drawing)</option>
-            <option value="bq">表情包 (bq)</option>
-            <option value="furry">福瑞 (furry)</option>
-          </select>
+        <div class="source-group source-uapipro hidden">
+          <div class="form-row"><span class="form-label">分类</span><select id="uapiCategory" class="time-input">
+            <option value="acg">二次元 (acg)</option><option value="landscape">风景 (landscape)</option>
+            <option value="anime">动漫混合 (anime)</option><option value="pc_wallpaper">电脑壁纸</option>
+            <option value="mobile_wallpaper">手机壁纸</option><option value="general_anime">动漫图</option>
+            <option value="ai_drawing">AI绘画</option><option value="bq">表情包</option><option value="furry">福瑞</option>
+          </select></div>
+          <div class="form-row"><span class="form-label">子分类</span><select id="uapiType" class="time-input">
+            <option value="" data-cat="*">默认</option><option value="pc" data-cat="acg">PC端</option>
+            <option value="mb" data-cat="acg">移动端</option><option value="xiongmao" data-cat="bq">熊猫</option>
+            <option value="waiguoren" data-cat="bq">歪果仁</option><option value="maomao" data-cat="bq">猫猫</option>
+            <option value="ikun" data-cat="bq">ikun</option><option value="eciyuan" data-cat="bq">二次元</option>
+            <option value="z4k" data-cat="furry">z4k</option><option value="szs8k" data-cat="furry">szs8k</option>
+            <option value="s4k" data-cat="furry">s4k</option><option value="4k" data-cat="furry">4k</option>
+          </select></div>
         </div>
-        <div class="config-row">
-          <span class="config-label">子分类</span>
-          <select id="uapiType" class="time-input" style="flex:1; width:auto; padding:8px 12px;">
-            <option value="" data-cat="*">默认</option>
-            <option value="pc" data-cat="acg">PC端 (pc)</option>
-            <option value="mb" data-cat="acg">移动端 (mb)</option>
-            <option value="xiongmao" data-cat="bq">熊猫 (xiongmao)</option>
-            <option value="waiguoren" data-cat="bq">歪果仁 (waiguoren)</option>
-            <option value="maomao" data-cat="bq">猫猫 (maomao)</option>
-            <option value="ikun" data-cat="bq">ikun (ikun)</option>
-            <option value="eciyuan" data-cat="bq">二次元 (eciyuan)</option>
-            <option value="z4k" data-cat="furry">z4k (z4k)</option>
-            <option value="szs8k" data-cat="furry">szs8k (szs8k)</option>
-            <option value="s4k" data-cat="furry">s4k (s4k)</option>
-            <option value="4k" data-cat="furry">4k (4k)</option>
-          </select>
-        </div>
-      </div>
 
-      <div class="source-group source-bing hidden">
-        <div class="config-row">
-          <span class="config-label">数据源</span>
-          <div class="radio-group">
-            <label class="radio-label"><input type="radio" name="bingSource" value="uapi" checked /><span>UApiPro</span></label>
-            <label class="radio-label"><input type="radio" name="bingSource" value="official" /><span>官方源</span></label>
+        <div class="source-group source-bing hidden">
+          <div class="form-row">
+            <span class="form-label">数据源</span>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="bingSource" value="uapi" checked /><span>UApiPro</span></label>
+              <label class="radio-label"><input type="radio" name="bingSource" value="official" /><span>官方源</span></label>
+            </div>
+          </div>
+          <div class="config-hint"><span class="material-icons config-hint-icon">landscape</span><span>Bing 壁纸为每日更新的高清风景摄影</span></div>
+        </div>
+
+        <div class="source-group source-imgapi hidden">
+          <div class="form-row"><span class="form-label">终端</span><select id="imgapiZd" class="time-input">
+            <option value="">默认</option><option value="mobile">手机</option><option value="pc">电脑</option><option value="zsy">自适应</option>
+          </select></div>
+          <div class="form-row"><span class="form-label">分类</span><select id="imgapiFl" class="time-input">
+            <option value="">默认</option><option value="meizi">美女</option><option value="dongman">动漫</option>
+            <option value="fengjing">风景</option><option value="suiji">随机</option>
+          </select></div>
+        </div>
+
+        <div class="source-group source-loliapi hidden">
+          <div class="form-row"><span class="form-label">分类</span><select id="loliapiCategory" class="time-input">
+            <option value="random">随机</option><option value="acg">二次元自适应</option><option value="bg">背景墙纸</option>
+            <option value="acg/pc">电脑壁纸</option><option value="acg/pe">手机壁纸</option><option value="acg/pp">二次元头像</option>
+          </select></div>
+        </div>
+
+        <div class="source-group source-alcy hidden">
+          <div class="form-row"><span class="form-label">分类</span><select id="alcyCategory" class="time-input">
+            <option value="random">随机</option><option value="ycy">二次元自适应</option><option value="moez">萌版自适应</option>
+            <option value="ai">AI自适应</option><option value="ysz">原神自适应</option><option value="pc">PC横图</option>
+            <option value="moe">萌版横图</option><option value="fj">风景横图</option><option value="bd">白底横图</option>
+            <option value="ys">原神横图</option><option value="acg">ACG动图</option><option value="mp">移动竖图</option>
+            <option value="moemp">萌版竖图</option><option value="ysmp">原神竖图</option><option value="aimp">AI竖图</option>
+            <option value="fjmp">风景竖图</option><option value="tx">头像方图</option><option value="lai">七濑胡桃</option>
+            <option value="xhl">小狐狸</option>
+          </select></div>
+          <div class="form-row"><span class="form-label">压缩</span><select id="alcyCompress" class="time-input time-input-sm">
+            <option value="none">不压缩</option><option value="800" selected>压缩到 800px</option>
+            <option value="1080">压缩到 1080px</option><option value="1920">压缩到 1920px</option>
+          </select></div>
+        </div>
+
+        <div class="form-row">
+          <span class="form-label">数量</span>
+          <input type="number" id="setuNum" class="time-input time-input-sm" value="3" min="1" max="20" />
+          <span class="config-hint-text" id="numHint">最多 20 张</span>
+        </div>
+
+        <div class="btn-group" style="width:100%;">
+          <button class="btn btn-primary btn-block" id="fetchBtn" type="button"><span class="material-icons">search</span> 获取</button>
+          <button class="btn btn-secondary" id="randomBtn" type="button" style="flex:0 0 auto;"><span class="material-icons">casino</span> 全随机</button>
+        </div>
+
+        <div class="progress-wrap hidden" id="progressBar">
+          <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressText">处理中...</div>
+        </div>
+
+        <!-- 配置预设 -->
+        <div class="card sub">
+          <div class="form-row">
+            <span class="form-label">配置名</span>
+            <input type="text" id="configName" class="text-input" placeholder="如 原神、风景、R18" />
+            <button class="btn btn-primary" id="saveConfigBtn" type="button"><span class="material-icons">save</span> 保存</button>
+          </div>
+          <div class="form-row">
+            <select id="configSelect" class="time-input"><option value="">加载已有配置...</option></select>
+            <button class="btn btn-secondary" id="deleteConfigBtn" type="button"><span class="material-icons">delete</span> 删除</button>
           </div>
         </div>
-        <div class="config-hint">
-          <span class="material-icons" style="font-size:16px;color:var(--text-muted)">landscape</span>
-          <span>Bing 壁纸为每日更新的高清风景摄影</span>
-        </div>
-      </div>
 
-      <div class="source-group source-imgapi hidden">
-        <div class="config-row">
-          <span class="config-label">终端</span>
-          <select id="imgapiZd" class="time-input" style="flex:1; padding:8px 12px;">
-            <option value="">默认</option>
-            <option value="mobile">手机 (mobile)</option>
-            <option value="pc">电脑 (pc)</option>
-            <option value="zsy">自适应 (zsy)</option>
-          </select>
+        <div class="results-header hidden" id="resultsHeader">
+          <span class="results-title">结果</span>
+          <span class="results-count" id="resultsCount">0 张</span>
         </div>
-        <div class="config-row">
-          <span class="config-label">分类</span>
-          <select id="imgapiFl" class="time-input" style="flex:1; padding:8px 12px;">
-            <option value="">默认</option>
-            <option value="meizi">美女 (meizi)</option>
-            <option value="dongman">动漫 (dongman)</option>
-            <option value="fengjing">风景 (fengjing)</option>
-            <option value="suiji">随机 (suiji)</option>
-          </select>
-        </div>
-      </div>
+        <div class="setu-grid hidden" id="setuGrid"></div>
 
-      <div class="source-group source-loliapi hidden">
-        <div class="config-row">
-          <span class="config-label">分类</span>
-          <select id="loliapiCategory" class="time-input" style="flex:1; width:auto; padding:8px 12px;">
-            <option value="random">随机</option>
-            <option value="acg">二次元自适应 (acg)</option>
-            <option value="bg">背景墙纸 (bg)</option>
-            <option value="acg/pc">电脑壁纸 (acg/pc)</option>
-            <option value="acg/pe">手机壁纸 (acg/pe)</option>
-            <option value="acg/pp">二次元头像 (acg/pp)</option>
-          </select>
+        <div class="send-panel hidden" id="sendPanel">
+          <div class="form-row" style="justify-content:space-between;">
+            <span class="selected-count" id="selectedCount">已选 0 个群 · 0 张图</span>
+            <label class="checkbox-all"><input type="checkbox" id="selectAllGroups" /><span>全选</span></label>
+          </div>
+          <div class="group-grid" id="groupGrid"></div>
+          <div class="form-row" style="justify-content:space-between;">
+            <span class="config-hint-text">勾选群后发送</span>
+            <button class="btn btn-primary" id="sendBtn" disabled type="button"><span class="material-icons">send</span> 发送</button>
+          </div>
         </div>
-      </div>
 
-      <div class="source-group source-alcy hidden">
-        <div class="config-row">
-          <span class="config-label">分类</span>
-          <select id="alcyCategory" class="time-input" style="flex:1; width:auto; padding:8px 12px;">
-            <option value="random">随机</option>
-            <option value="ycy">二次元自适应 (ycy)</option>
-            <option value="moez">萌版自适应 (moez)</option>
-            <option value="ai">AI自适应 (ai)</option>
-            <option value="ysz">原神自适应 (ysz)</option>
-            <option value="pc">PC横图 (pc)</option>
-            <option value="moe">萌版横图 (moe)</option>
-            <option value="fj">风景横图 (fj)</option>
-            <option value="bd">白底横图 (bd)</option>
-            <option value="ys">原神横图 (ys)</option>
-            <option value="acg">ACG动图 (acg)</option>
-            <option value="mp">移动竖图 (mp)</option>
-            <option value="moemp">萌版竖图 (moemp)</option>
-            <option value="ysmp">原神竖图 (ysmp)</option>
-            <option value="aimp">AI竖图 (aimp)</option>
-            <option value="fjmp">风景竖图 (fjmp)</option>
-            <option value="tx">头像方图 (tx)</option>
-            <option value="lai">七濑胡桃 (lai)</option>
-            <option value="xhl">小狐狸 (xhl)</option>
-          </select>
+      </div>
+    </div>
+
+    <!-- ═══ 积木编程 ═══ -->
+    <div id="blocksSection" class="hidden">
+      <div class="card">
+        <div class="form-row"><span class="form-label">指令名</span><input type="text" id="cmdName" class="text-input" placeholder="如 每日精选" /></div>
+        <div class="form-row">
+          <span class="form-label">可用积木</span>
+          <select id="availablePresets" class="time-input"><option value="">-- 选择配置预设 --</option></select>
+          <button class="btn btn-primary" id="addStepBtn" type="button"><span class="material-icons">add</span> 添加</button>
         </div>
-        <div class="config-row">
-          <span class="config-label">压缩</span>
-          <select id="alcyCompress" class="time-input" style="width:140px; padding:8px 12px;">
-            <option value="none">不压缩</option>
-            <option value="800" selected>压缩到 800px</option>
-            <option value="1080">压缩到 1080px</option>
-            <option value="1920">压缩到 1920px</option>
-          </select>
+        <span class="form-label">步骤列表</span>
+        <div id="stepList" class="step-list"><div class="empty-row">暂无步骤，请添加</div></div>
+        <div class="form-row">
+          <span class="form-label">输出模式</span>
+          <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="cmdMode" value="random" checked /><span>随机选一个</span></label>
+            <label class="radio-label"><input type="radio" name="cmdMode" value="all" /><span>全部（分条）</span></label>
+            <label class="radio-label"><input type="radio" name="cmdMode" value="merge" /><span>全部（合并）</span></label>
+          </div>
         </div>
-      </div>
-
-      <div class="config-row">
-        <span class="config-label">数量</span>
-        <input type="number" id="setuNum" class="time-input" value="3" min="1" max="20" style="width:80px" />
-        <span class="config-hint-text" id="numHint">最多 20 张</span>
-      </div>
-      <div class="config-actions">
-        <button class="btn btn-primary" id="fetchBtn"><span class="material-icons">search</span> 获取</button>
-      </div>
-
-      <div class="progress-bar hidden" id="progressBar">
-        <div class="progress-fill" id="progressFill"></div>
-        <span class="progress-text" id="progressText">处理中...</span>
-      </div>
-
-      <!-- ─── 配置预设 ─────────────────── -->
-      <div class="config-panel" style="margin-top: 8px;">
-        <div class="config-row">
-          <span class="config-label">配置名</span>
-          <input type="text" id="configName" class="text-input" placeholder="如 原神、风景、R18" />
-          <button class="btn btn-primary" id="saveConfigBtn"><span class="material-icons">save</span> 保存</button>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="saveCmdBtn" type="button"><span class="material-icons">save</span> 保存指令</button>
+          <button class="btn btn-secondary" id="deleteCmdBtn" type="button"><span class="material-icons">delete</span> 删除</button>
         </div>
-        <div class="config-row">
-          <select id="configSelect" class="time-input" style="flex:1; padding:8px 12px;">
-            <option value="">加载已有配置...</option>
-          </select>
-          <button class="btn btn-secondary" id="deleteConfigBtn"><span class="material-icons">delete</span> 删除</button>
-        </div>
+        <div class="form-row"><span class="form-label">已有指令</span><select id="cmdSelect" class="time-input"><option value="">选择指令编辑...</option></select></div>
       </div>
+    </div>
 
-      <div class="results-header hidden" id="resultsHeader">
-        <span class="results-title">结果</span>
-        <span class="results-count" id="resultsCount">0 张</span>
-      </div>
-      <div class="setu-grid hidden" id="setuGrid"></div>
-
-      <div class="send-panel hidden" id="sendPanel">
-        <div class="config-actions config-actions-between" style="padding: 0 0 12px 0;">
-          <span class="selected-count" id="selectedCount">已选 0 个群 · 0 张图</span>
-          <label class="checkbox-all"><input type="checkbox" id="selectAllGroups" /><span>全选</span></label>
+    <!-- ═══ 调用记录 ═══ -->
+    <div id="logsSection" class="hidden">
+      <div class="card">
+        <div class="form-row" style="justify-content:space-between;">
+          <span class="jobs-title">调用记录</span>
+          <button class="btn btn-secondary" id="refreshLogsBtn" type="button"><span class="material-icons">refresh</span> 刷新</button>
         </div>
-        <div class="group-grid" id="groupGrid"></div>
-        <div class="config-actions config-actions-between" style="padding: 12px 0 0 0;">
-          <span class="config-hint-text">勾选群后发送</span>
-          <button class="btn btn-primary" id="sendBtn" disabled><span class="material-icons">send</span> 发送</button>
+        <div id="logsList" class="logs-list"><div class="empty-row">暂无调用记录</div></div>
+        <div class="form-row" style="justify-content:space-between;">
+          <span class="config-hint-text" id="logsCount">共 0 条</span>
+          <div class="pager">
+            <button class="btn btn-secondary btn-icon" id="logsPrevBtn" disabled type="button"><span class="material-icons">chevron_left</span></button>
+            <span class="config-hint-text" id="logsPage">第 1 页</span>
+            <button class="btn btn-secondary btn-icon" id="logsNextBtn" disabled type="button"><span class="material-icons">chevron_right</span></button>
+          </div>
         </div>
       </div>
     </div>
+
   </div>
 
-  <!-- ═══════════════════════════════════════════
-       积木编程
-       ═══════════════════════════════════════════ -->
-  <div id="blocksSection" class="hidden">
-    <div class="config-panel">
-      <div class="config-row">
-        <span class="config-label">指令名</span>
-        <input type="text" id="cmdName" class="text-input" placeholder="如 每日精选" />
-      </div>
-      <div class="config-row">
-        <span class="config-label">可用积木</span>
-        <select id="availablePresets" class="time-input" style="flex:1; padding:8px 12px;">
-          <option value="">-- 选择配置预设 --</option>
-        </select>
-        <button class="btn btn-primary" id="addStepBtn"><span class="material-icons">add</span> 添加</button>
-      </div>
-      <div class="config-label">步骤列表</div>
-      <div id="stepList" class="step-list">
-        <div class="empty-row">暂无步骤，请添加</div>
-      </div>
-      <div class="config-row">
-        <span class="config-label">输出模式</span>
-        <div class="radio-group">
-          <label class="radio-label"><input type="radio" name="cmdMode" value="random" checked /><span>随机选一个</span></label>
-          <label class="radio-label"><input type="radio" name="cmdMode" value="all" /><span>全部输出（分条）</span></label>
-          <label class="radio-label"><input type="radio" name="cmdMode" value="merge" /><span>全部输出（合并）</span></label>
-        </div>
-      </div>
-      <div class="config-actions" style="gap: 8px;">
-        <button class="btn btn-primary" id="saveCmdBtn"><span class="material-icons">save</span> 保存指令</button>
-        <button class="btn btn-secondary" id="deleteCmdBtn"><span class="material-icons">delete</span> 删除</button>
-      </div>
-      <div class="config-row">
-        <span class="config-label">已有指令</span>
-        <select id="cmdSelect" class="time-input" style="flex:1; padding:8px 12px;">
-          <option value="">选择指令编辑...</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════
-       调用记录
-       ═══════════════════════════════════════════ -->
-  <div id="logsSection" class="hidden">
-    <div class="config-panel">
-      <div class="config-actions config-actions-between">
-        <span class="jobs-title">LLM 调用记录</span>
-        <button class="btn btn-secondary" id="refreshLogsBtn"><span class="material-icons">refresh</span> 刷新</button>
-      </div>
-      <div id="logsList" class="logs-list">
-        <div class="empty-row">暂无调用记录</div>
-      </div>
-      <div class="config-actions config-actions-between" style="padding-top: 8px;">
-        <span class="config-hint-text" id="logsCount">共 0 条</span>
-        <div style="display:flex;gap:4px;align-items:center;">
-          <button class="btn btn-secondary" id="logsPrevBtn" disabled><span class="material-icons">chevron_left</span></button>
-          <span class="config-hint-text" id="logsPage">第 1 页</span>
-          <button class="btn btn-secondary" id="logsNextBtn" disabled><span class="material-icons">chevron_right</span></button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ 调用详情弹窗 ═══ -->
+  <!-- 调用详情弹窗 -->
   <div class="modal-overlay hidden" id="logDetailModal">
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">调用详情</span>
-        <button class="modal-close" id="logDetailClose"><span class="material-icons">close</span></button>
+        <div class="modal-tools">
+          <button class="modal-close" id="logCopyBtn" type="button" title="复制详情"><span class="material-icons">content_copy</span></button>
+          <button class="modal-close" id="logDetailClose" type="button"><span class="material-icons">close</span></button>
+        </div>
       </div>
       <div class="modal-body" id="logDetailBody">
-        <div class="detail-row">
-          <span class="detail-label">时间</span>
-          <span class="detail-value" id="detailTime"></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">用户</span>
-          <span class="detail-value" id="detailUser"></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">群组</span>
-          <span class="detail-value" id="detailGroup"></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">图源</span>
-          <span class="detail-value" id="detailSource"></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">标签</span>
-          <span class="detail-value" id="detailTag"></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">结果</span>
-          <span class="detail-value" id="detailResult"></span>
-        </div>
-        <div class="detail-row detail-row-msg">
-          <span class="detail-label">用户消息</span>
-          <div class="detail-msg" id="detailPrompt"></div>
-        </div>
-        <div class="detail-row detail-row-msg">
-          <span class="detail-label">详情</span>
-          <div class="detail-msg" id="detailDetail"></div>
-        </div>
+        <div class="detail-row"><span class="detail-label">时间</span><span class="detail-value" id="detailTime"></span></div>
+        <div class="detail-row"><span class="detail-label">用户</span><span class="detail-value" id="detailUser"></span></div>
+        <div class="detail-row"><span class="detail-label">群组</span><span class="detail-value" id="detailGroup"></span></div>
+        <div class="detail-row"><span class="detail-label">图源</span><span class="detail-value" id="detailSource"></span></div>
+        <div class="detail-row"><span class="detail-label">指令</span><span class="detail-value" id="detailTag"></span></div>
+        <div class="detail-row"><span class="detail-label">结果</span><span class="detail-value" id="detailResult"></span></div>
+        <div class="detail-row detail-row-msg"><span class="detail-label">用户消息</span><div class="detail-msg" id="detailPrompt"></div></div>
+        <div class="detail-row detail-row-msg"><span class="detail-label">详情</span><div class="detail-msg" id="detailDetail"></div></div>
+        <div class="detail-row detail-row-msg"><span class="detail-label">详细 API</span><div class="detail-msg" id="detailApi"></div></div>
+        <div class="detail-row detail-row-msg"><span class="detail-label">API 返回结果</span><div class="detail-msg" id="detailRaw"></div></div>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
+  <!-- 大图查看器（全屏可缩放） -->
+  <div class="modal-overlay hidden" id="imgViewerModal">
+    <div class="img-viewer">
+      <div class="img-viewer-top">
+        <div class="img-viewer-title" id="imgViewerTitle"></div>
+        <button class="modal-close img-viewer-close" id="imgViewerClose" type="button"><span class="material-icons">close</span></button>
+      </div>
+
+      <!-- Base64 提示（Material 3 Snackbar） -->
+      <div class="img-viewer-toast" id="imgViewerToast">
+        <span class="material-icons toast-icon">info</span>
+        <div class="toast-body">
+          <div class="toast-title">图片为内嵌缓存（Base64）</div>
+          <div class="toast-desc">长按「<b>查看/预览</b>」会一次性加载数 MB 数据卡死浏览器；长按「<b>保存/下载</b>」则安全。</div>
+        </div>
+      </div>
+
+      <div class="img-viewer-stage" id="imgViewerStage">
+        <img id="imgViewerImg" alt="" draggable="false" />
+      </div>
+      <div class="img-viewer-toolbar">
+        <button class="iv-btn" id="imgViewerZoomOut" type="button" title="缩小"><span class="material-icons">zoom_out</span></button>
+        <span class="iv-zoom" id="imgViewerZoom">100%</span>
+        <button class="iv-btn" id="imgViewerZoomIn" type="button" title="放大"><span class="material-icons">zoom_in</span></button>
+        <button class="iv-btn" id="imgViewerFit" type="button" title="适应屏幕"><span class="material-icons">fit_screen</span></button>
+        <button class="iv-btn" id="imgViewerCopy" type="button"><span class="material-icons">content_copy</span> <span class="iv-btn-label">复制链接</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast / 加载中 -->
   <div class="result-toast hidden" id="resultToast">
     <span class="material-icons" id="resultIcon">check_circle</span>
     <span id="resultMessage"></span>
   </div>
-  <div class="state-box hidden" id="loadingState"><span class="material-icons state-icon">hourglass_empty</span><p>加载中...</p></div>
+  <div class="state-box hidden" id="loadingState">
+    <svg class="state-icon" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path stroke-dasharray="18" d="M12 3c4.97 0 9 4.03 9 9">
+          <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.3s" values="18;0" />
+          <animateTransform attributeName="transform" dur="1.5s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12" />
+        </path>
+        <path stroke-dasharray="60" d="M12 3c4.97 0 9 4.03 9 9c0 4.97 -4.03 9 -9 9c-4.97 0 -9 -4.03 -9 -9c0 -4.97 4.03 -9 9 -9Z" opacity=".3">
+          <animate fill="freeze" attributeName="stroke-dashoffset" dur="1.2s" values="60;0" />
+        </path>
+      </g>
+    </svg>
+    <p>加载中...</p>
+  </div>
 
   <script type="module" src="./app.js"></script>
 </body>

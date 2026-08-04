@@ -21,8 +21,8 @@ _file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] %(me
 logger.addHandler(_file_handler)
 logger.setLevel(logging.INFO)
 
-NAPCAT_HTTP = "http://127.0.0.1:3001"
-NAPCAT_TOKEN = "iloveu"
+NAPCAT_HTTP = "http://127.0.0.1:3000"
+NAPCAT_TOKEN = "awa"
 PLUGIN_NAME = "astrbot_plugin_setu_webui"
 
 @register(PLUGIN_NAME, "Youzix-Star & DeepSeek", "随机图片", "1.0.0")
@@ -74,6 +74,131 @@ class MyPlugin(Star):
         with open(self._commands_path(), "w", encoding="utf-8") as f:
             json.dump(commands, f, ensure_ascii=False, indent=2)
 
+    # ─── 调用记录辅助 ──────────────────────────
+
+    def _append_log(self, entry):
+        self.llm_call_logs.insert(0, entry)
+        if len(self.llm_call_logs) > 100:
+            self.llm_call_logs = self.llm_call_logs[:100]
+
+    def _log_tag(self, body):
+        tag = body.get("tag", "") if isinstance(body, dict) else ""
+        if isinstance(tag, list):
+            return ",".join(str(t) for t in tag)
+        return str(tag or "")
+
+    def _log_image_summary(self, images):
+        out = []
+        for img in images or []:
+            if not isinstance(img, dict):
+                continue
+            url = img.get("source_url", "") or img.get("url", "")
+            if url and not url.startswith("http"):
+                url = "(本地临时文件)"
+            out.append({
+                "url": url,
+                "title": img.get("title", ""),
+                "author": img.get("author", ""),
+                "pid": img.get("pid", ""),
+            })
+        return out
+
+    def _describe_api(self, source, body):
+        p = body or {}
+        if source == "lolicon":
+            payload = {}
+            payload["r18"] = p.get("r18", 0)
+            payload["num"] = p.get("num", 1)
+            if p.get("tag"):
+                payload["tag"] = p["tag"]
+            if p.get("size"):
+                payload["size"] = p["size"]
+            if p.get("keyword"):
+                payload["keyword"] = p["keyword"]
+            if p.get("aspectRatio"):
+                payload["aspectRatio"] = p["aspectRatio"]
+            return "POST https://api.lolicon.app/setu/v2\n" + json.dumps(payload, ensure_ascii=False, indent=2)
+        if source == "uapipro":
+            qs = f"category={p.get('uapiCategory', 'acg')}"
+            if p.get("uapiType"):
+                qs += f"&type={p['uapiType']}"
+            return f"GET https://uapis.cn/api/v1/random/image?{qs}"
+        if source == "bing":
+            if p.get("bingSource") == "official":
+                return "GET https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN"
+            return "GET https://uapis.cn/api/v1/image/bing-daily?format=json&resolution=1080"
+        if source == "imgapi":
+            return f"GET https://imgapi.cn/api.php?zd={p.get('imgapiZd', '')}&fl={p.get('imgapiFl', '')}&gs=json"
+        if source == "dmoe":
+            return "GET https://www.dmoe.cc/random.php"
+        if source == "loliapi":
+            cat = p.get("loliapiCategory") or "acg"
+            if cat == "random":
+                cat = "acg"
+            return f"GET https://www.loliapi.com/{cat}/"
+        if source == "alcy":
+            cat = p.get("alcyCategory") or "ycy"
+            if cat == "random":
+                cat = "ycy"
+            return f"GET https://t.alcy.cc/json?{cat}=1"
+        return source
+
+    # ─── 全随机辅助 ──────────────────────────
+
+    def _random_config(self):
+        """全随机：把所有图源×子分类拍平成结果池，等概率抽一个（50 选 1）"""
+        alcy_cats = ["ycy", "moez", "ai", "ysz", "pc", "moe", "fj", "bd", "ys",
+                     "acg", "mp", "moemp", "ysmp", "aimp", "fjmp", "tx", "lai", "xhl"]
+        loliapi_cats = ["acg", "bg", "acg/pc", "acg/pe", "acg/pp"]
+        imgapi_cats = ["meizi", "dongman", "fengjing", "suiji"]
+        uapi_main = ["acg", "landscape", "anime", "pc_wallpaper", "mobile_wallpaper",
+                     "general_anime", "ai_drawing", "bq", "furry"]
+        uapi_sub = {
+            "acg": ["pc", "mb"],
+            "bq": ["xiongmao", "waiguoren", "maomao", "ikun", "eciyuan"],
+            "furry": ["z4k", "szs8k", "s4k", "4k"],
+        }
+
+        # 构建等概率叶子池：(图源, 额外参数)
+        leaves = []
+        leaves.append(("lolicon", {}))
+        leaves.append(("bing", {}))
+        leaves.append(("dmoe", {}))
+        for c in alcy_cats:
+            leaves.append(("alcy", {"alcyCategory": c}))
+        for c in loliapi_cats:
+            leaves.append(("loliapi", {"loliapiCategory": c}))
+        for c in imgapi_cats:
+            leaves.append(("imgapi", {"imgapiFl": c}))
+        for main in uapi_main:
+            leaves.append(("uapipro", {"uapiCategory": main}))
+            for sub in uapi_sub.get(main, []):
+                leaves.append(("uapipro", {"uapiCategory": main, "uapiType": sub}))
+
+        source, extra = random.choice(leaves)
+        body = {"source": source, "num": 1, "r18": 0, **extra}
+        return source, body
+
+    def _cmd_for(self, source, body):
+        """根据图源与参数生成真实可用的指令字符串"""
+        body = body or {}
+        if source == "alcy":
+            return f"/setu alcy {body.get('alcyCategory', 'ycy')}"
+        if source == "loliapi":
+            return f"/setu loliapi {body.get('loliapiCategory', 'acg')}"
+        if source == "uapipro":
+            main = body.get("uapiCategory", "acg")
+            sub = body.get("uapiType", "")
+            return f"/setu uapipro {main}" + (f"+{sub}" if sub else "")
+        if source == "imgapi":
+            return f"/setu imgapi {body.get('imgapiFl', 'suiji')}"
+        if source == "bing":
+            return "/setu bing"
+        if source == "dmoe":
+            return "/setu dmoe"
+        tags = body.get("tag") or []
+        return "/setu " + ",".join(tags) if tags else "/setu"
+
     async def napcat(self, action, data=None):
         headers = {"Content-Type": "application/json"}
         if NAPCAT_TOKEN:
@@ -101,13 +226,81 @@ class MyPlugin(Star):
         num = int(body.get("num", 5))
         if num < 1: num = 1
         if num > 20: num = 20
-        logger.info(f"[handle_fetch] source={source}, num={num}, body={json.dumps(body, ensure_ascii=False)}")
+        random_mode = bool(body.get("random"))
+        logger.info(f"[handle_fetch] source={source}, num={num}, random={random_mode}, body={json.dumps(body, ensure_ascii=False)}")
         try:
+            if random_mode:
+                # 全随机：每一张独立抽取图源+分类，各自带自己的指令/图源/API，并逐张写入调用记录
+                data = []
+                pending = []
+                for _ in range(num):
+                    src, rbody = self._random_config()
+                    rbody["num"] = 1
+                    try:
+                        one = await self._fetch(src, rbody)
+                        if one:
+                            one[0]["command"] = self._cmd_for(src, rbody)
+                            one[0]["source"] = src
+                            one[0]["api"] = self._describe_api(src, rbody)
+                            data.append(one[0])
+                            pending.append((one[0], {
+                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "user": "WebUI",
+                                "group": "-",
+                                "source": src,
+                                "tag": one[0]["command"],
+                                "prompt": json.dumps(body, ensure_ascii=False),
+                                "result": "成功",
+                                "detail": "1 张",
+                                "api": self._describe_api(src, rbody),
+                                "raw": json.dumps(self._log_image_summary(one), ensure_ascii=False, indent=2),
+                            }))
+                    except Exception as e:
+                        logger.warning(f"[random] draw failed: {e}")
+                        continue
+                n = len(pending)
+                for i, (img, entry) in enumerate(pending):
+                    self._append_log(entry)
+                    img["log_index"] = n - 1 - i   # 后插入的条目会把前面的往下推
+                return json_response({"images": data})
+
+            # 普通模式：同一图源取 num 张，共用一条指令
             data = await self._fetch(source, body)
             logger.info(f"[handle_fetch] result count={len(data)}")
+            cmd_str = self._cmd_for(source, body)
+            for img in data:
+                img["command"] = cmd_str
+                img["source"] = source
+                img["api"] = self._describe_api(source, body)
+            self._append_log({
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "user": "WebUI",
+                "group": "-",
+                "source": source,
+                "tag": cmd_str,
+                "prompt": json.dumps(body, ensure_ascii=False),
+                "result": "成功" if data else "失败",
+                "detail": f"{len(data)} 张" if data else "没有找到图片",
+                "api": self._describe_api(source, body),
+                "raw": json.dumps(self._log_image_summary(data), ensure_ascii=False, indent=2),
+            })
+            for img in data:
+                img["log_index"] = 0
             return json_response({"images": data})
         except Exception as e:
             logger.error(f"[handle_fetch] failed: {e}", exc_info=True)
+            self._append_log({
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "user": "WebUI",
+                "group": "-",
+                "source": source,
+                "tag": self._cmd_for(source, body) if not random_mode else "全随机",
+                "prompt": json.dumps(body, ensure_ascii=False),
+                "result": "失败",
+                "detail": str(e),
+                "api": self._describe_api(source, body),
+                "raw": "[]",
+            })
             return error_response(str(e), 500)
 
     async def fetch_lolicon(self, body):
@@ -156,6 +349,7 @@ class MyPlugin(Star):
                     async with s.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         ct = resp.headers.get("Content-Type", "")
                         img_data = await resp.read()
+                        final_url = str(resp.url)
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
@@ -163,7 +357,7 @@ class MyPlugin(Star):
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                 tmp.write(img_data); tmp.close()
                 b64 = base64.b64encode(img_data).decode("ascii")
-                out.append({"url": tmp.name, "thumb": f"data:{ct};base64,{b64}", "title": f"UApiPro {category}", "author": img_type or category, "pid": f"uapi_{i}"})
+                out.append({"url": tmp.name, "source_url": final_url, "thumb": f"data:{ct};base64,{b64}", "title": f"UApiPro {category}", "author": img_type or category, "pid": f"uapi_{i}"})
             except Exception as e:
                 logger.warning(f"[uapi] fetch failed[{i}]: {e}")
                 continue
@@ -228,7 +422,7 @@ class MyPlugin(Star):
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                     tmp.write(img_data); tmp.close()
                     b64 = base64.b64encode(img_data).decode("ascii")
-                    out.append({"url": tmp.name, "thumb": f"data:{ct};base64,{b64}", "title": f"imgapi {fl or '壁纸'}", "author": f"{data.get('width', '?')}x{data.get('height', '?')}", "pid": f"imgapi_{i}"})
+                    out.append({"url": tmp.name, "source_url": img_url, "thumb": f"data:{ct};base64,{b64}", "title": f"imgapi {fl or '壁纸'}", "author": f"{data.get('width', '?')}x{data.get('height', '?')}", "pid": f"imgapi_{i}"})
             except Exception as e:
                 logger.warning(f"[imgapi] fetch failed[{i}]: {e}")
                 continue
@@ -245,13 +439,14 @@ class MyPlugin(Star):
                     async with s.get(url, timeout=30, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         img_data = await resp.read()
                         ct = resp.headers.get("Content-Type", "image/jpeg")
+                        final_url = str(resp.url)
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                 tmp.write(img_data); tmp.close()
                 b64 = base64.b64encode(img_data).decode("ascii")
-                out.append({"url": tmp.name, "thumb": f"data:{ct};base64,{b64}", "title": "dmoe 二次元", "author": "dmoe.cc", "pid": f"dmoe_{i}"})
+                out.append({"url": tmp.name, "source_url": final_url, "thumb": f"data:{ct};base64,{b64}", "title": "dmoe 二次元", "author": "dmoe.cc", "pid": f"dmoe_{i}"})
             except Exception as e:
                 logger.warning(f"[dmoe] fetch failed[{i}]: {e}")
                 continue
@@ -272,6 +467,7 @@ class MyPlugin(Star):
                     async with s.get(url, timeout=30, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as resp:
                         img_data = await resp.read()
                         ct = resp.headers.get("Content-Type", "image/jpeg")
+                        final_url = str(resp.url)
                 suffix = ".jpg"
                 if "png" in ct: suffix = ".png"
                 elif "gif" in ct: suffix = ".gif"
@@ -279,7 +475,7 @@ class MyPlugin(Star):
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                 tmp.write(img_data); tmp.close()
                 b64 = base64.b64encode(img_data).decode("ascii")
-                out.append({"url": tmp.name, "thumb": f"data:{ct};base64,{b64}", "title": f"LoliAPI {cat}", "author": "loliapi.com", "pid": f"loliapi_{i}"})
+                out.append({"url": tmp.name, "source_url": final_url, "thumb": f"data:{ct};base64,{b64}", "title": f"LoliAPI {cat}", "author": "loliapi.com", "pid": f"loliapi_{i}"})
             except Exception as e:
                 logger.warning(f"[loliapi] fetch failed[{i}]: {e}")
                 continue
@@ -310,7 +506,7 @@ class MyPlugin(Star):
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
                     tmp.write(img_data); tmp.close()
                     b64 = base64.b64encode(img_data).decode("ascii")
-                    out.append({"url": tmp.name, "thumb": f"data:image/jpeg;base64,{b64}", "title": f"栗次元 {cat}", "author": "alcy.cc", "pid": f"alcy_{item.get('id', i)}"})
+                    out.append({"url": tmp.name, "source_url": link, "thumb": f"data:image/jpeg;base64,{b64}", "title": f"栗次元 {cat}", "author": "alcy.cc", "pid": f"alcy_{item.get('id', i)}"})
             except Exception as e:
                 logger.warning(f"[alcy] fetch failed[{i}]: {e}")
                 continue
@@ -333,6 +529,324 @@ class MyPlugin(Star):
         except Exception as e:
             logger.warning(f"[compress] failed: {e}")
             return img_data
+
+    # ══════════════════════════════════════════
+    #  帮助海报（HTML 渲染 + Pillow 兜底）
+    # ══════════════════════════════════════════
+
+    def _build_help_poster_html(self) -> str:
+        """读取 help_template.html 模板并填充动态内容（杂志风 · 无图标 · 附实用命令）"""
+        import html as html_mod
+
+        config_dir = self._config_dir()
+        names = sorted(p.stem for p in config_dir.glob("*.json")) if config_dir.exists() else []
+        cmds = self._load_commands()
+
+        def esc(s):
+            return html_mod.escape(str(s))
+
+        def card(index, title, inner):
+            return (
+                '<div class="card">'
+                f'<div class="card-head"><span class="sec-num">{index:02d}</span>'
+                f'<span class="card-title">{esc(title)}</span></div>'
+                f'<div class="card-body">{inner}</div>'
+                "</div>"
+            )
+
+        cards_html = ""
+
+        # 01 说人话
+        nl_inner = (
+            '<div class="msg-bubble">'
+            "懒得记指令？直接说人话——<b>「来张原神的图」</b>"
+            "<b>「想看风景」</b><b>「来只小狐狸」</b>，"
+            "<br>AI 自己会去搞定，你负责躺着欣赏就行。"
+            "</div>"
+        )
+        cards_html += card(1, "说人话", nl_inner)
+
+        # 02 基本指令
+        cmd_rows = ""
+        for cmd, desc in [
+            ("/setu", "随机来一张（默认 Lolicon）"),
+            ("/setu random", "全随机：50 种图源×分类等概率抽取，玩的就是心跳"),
+            ("/setu 关键词", "按标签搜，如 /setu 百合"),
+            ("/setu list", "查看已保存的配置与指令"),
+            ("/setu help", "召唤这本指南"),
+        ]:
+            cmd_rows += (
+                f'<div class="cmd-row"><code>{esc(cmd)}</code>'
+                f'<span class="cmd-desc">{esc(desc)}</span></div>'
+            )
+        cards_html += card(2, "基本指令", cmd_rows)
+
+        # 03 图源 · 用法（分类树形图）
+        cards_html += card(3, "图源 · 用法", f'<div class="src-grid">{self._build_source_rows()}</div>')
+
+        # 04 网页面板
+        web_rows = ""
+        for name, desc in [
+            ("快速获取", "网页上点几下就能取图，还能勾选群一键发送"),
+            ("积木编程", "把常用设置存成积木，组合成指令，一句话召唤整套图"),
+            ("调用记录", "查看 AI 帮你取过什么图，详情可一键复制"),
+        ]:
+            web_rows += (
+                f'<div class="cmd-row"><span class="cmd-name">{esc(name)}</span>'
+                f'<span class="cmd-desc">{esc(desc)}</span></div>'
+            )
+        cards_html += card(4, "网页面板", web_rows)
+
+        if names:
+            cards_html += card(5, "已保存配置", '<div class="plain">' + esc("    ".join(names)) + "</div>")
+        if cmds:
+            cmd_list = "".join(
+                f'<div class="plain">· {esc(c["name"])}'
+                f'（{"随机" if c.get("mode") == "random" else "分条" if c.get("mode") == "all" else "合并"}'
+                f' {len(c.get("presets", []))}步）</div>'
+                for c in cmds
+            )
+            cards_html += card(6, "已保存指令", cmd_list)
+
+        template_path = Path(__file__).parent / "help_template.html"
+        if template_path.exists():
+            template = template_path.read_text(encoding="utf-8")
+            return template.replace("<!--SECTIONS-->", cards_html)
+
+        return (
+            "<html><body style='width:100%;font-family:sans-serif;padding:20px;'>"
+            + cards_html
+            + "</body></html>"
+        )
+
+    def _build_source_rows(self) -> str:
+        """生成「图源 · 用法」：每个图源 = 中文名 + 代码 + 真实命令 + 分类树形图"""
+        import html as html_mod
+        esc = html_mod.escape
+
+        def chip(code, desc):
+            if code:
+                return (
+                    f'<span class="src-cat"><span class="src-cat-code">{esc(code)}</span>'
+                    f"<span>{esc(desc)}</span></span>"
+                )
+            return f'<span class="src-cat note"><span>{esc(desc)}</span></span>'
+
+        def tree_block(groups):
+            html = '<div class="tree">'
+            for cat, items in groups:
+                tags = "".join(chip(c, d) for c, d in items)
+                html += (
+                    f'<div class="tree-row">'
+                    f'<span class="tree-cat">{esc(cat)}</span>'
+                    f'<div class="tree-tags">{tags}</div>'
+                    f"</div>"
+                )
+            html += "</div>"
+            return html
+
+        def block(name, code, example, groups):
+            return (
+                '<div class="src-item">'
+                f'<div class="src-head">'
+                f'<span class="src-name">{esc(name)}</span>'
+                f'<span class="src-code">{esc(code)}</span>'
+                f'<code class="src-example">{esc(example)}</code>'
+                f"</div>"
+                f'{tree_block(groups)}'
+                "</div>"
+            )
+
+        rows = ""
+        rows += block("Lolicon", "lolicon", "/setu 关键词", [
+            ("使用", [("", "默认图源。直接 /setu 随机来一张；带关键词按角色/标签搜，如「原神」「泳装」")]),
+        ])
+        rows += block("栗次元", "alcy", "/setu alcy ycy", [
+            ("自适应", [("ycy", "二次元"), ("moez", "萌版"), ("ai", "AI图"), ("ysz", "原神")]),
+            ("横图", [("pc", "横版"), ("moe", "萌版横图"), ("fj", "风景"), ("bd", "白底"), ("ys", "原神横图")]),
+            ("竖图", [("mp", "竖版"), ("moemp", "萌版竖图"), ("ysmp", "原神竖图"), ("aimp", "AI竖图"), ("fjmp", "风景竖图")]),
+            ("其它", [("acg", "动图"), ("tx", "头像"), ("lai", "七濑胡桃"), ("xhl", "小狐狸")]),
+        ])
+        rows += block("UApiPro", "uapipro", "/setu uapipro acg", [
+            ("主分类", [("acg", "二次元"), ("landscape", "风景"), ("anime", "动漫混合"), ("pc_wallpaper", "电脑壁纸"), ("mobile_wallpaper", "手机壁纸"), ("general_anime", "动漫图"), ("ai_drawing", "AI绘画"), ("bq", "表情包"), ("furry", "福瑞")]),
+            ("acg 子类", [("acg+pc", "电脑壁纸"), ("acg+mb", "手机壁纸")]),
+            ("bq 子类", [("bq+xiongmao", "熊猫"), ("bq+waiguoren", "歪果仁"), ("bq+maomao", "猫猫"), ("bq+ikun", "ikun"), ("bq+eciyuan", "二次元")]),
+            ("furry 子类", [("furry+z4k", "画质Z"), ("furry+szs8k", "画质S"), ("furry+s4k", "画质S+"), ("furry+4k", "画质4K")]),
+        ])
+        rows += block("LoliAPI", "loliapi", "/setu loliapi acg", [
+            ("分类", [("acg", "二次元自适应"), ("bg", "背景墙纸"), ("acg/pc", "电脑壁纸"), ("acg/pe", "手机壁纸"), ("acg/pp", "二次元头像")]),
+        ])
+        rows += block("imgapi", "imgapi", "/setu imgapi meizi", [
+            ("分类", [("meizi", "美女"), ("dongman", "动漫"), ("fengjing", "风景"), ("suiji", "随机")]),
+        ])
+        rows += block("Bing 壁纸", "bing", "/setu bing", [
+            ("使用", [("", "每日更新的高清风景摄影，无需分类")]),
+        ])
+        rows += block("dmoe 二次元", "dmoe", "/setu dmoe", [
+            ("使用", [("", "二次元小站直出图，无需分类")]),
+        ])
+        return rows
+
+    async def _render_help_poster(self) -> str:
+        """渲染帮助海报为图片，返回本地文件路径。优先用 AstrBot 内置 html_render，失败回退 Pillow。"""
+        html_content = self._build_help_poster_html()
+        html_render = getattr(self, "html_render", None)
+        if html_render is not None:
+            # 渲染参数对齐「群日常分析」插件：全页截图 + ultra 高倍率(1.8x)保证清晰
+            image_options = {
+                "full_page": True,
+                "type": "png",
+                "device_scale_factor_level": "ultra",
+                "timeout": 60000,
+            }
+            try:
+                image_data = await html_render(html_content, {}, False, image_options)
+                if isinstance(image_data, bytes) and image_data.startswith(b"\x89PNG"):
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                    tmp.write(image_data)
+                    tmp.close()
+                    return tmp.name
+                if isinstance(image_data, str) and os.path.exists(image_data):
+                    return image_data
+                logger.warning("[help] html_render 返回数据无效，回退 Pillow 绘制")
+            except Exception as e:
+                logger.warning(f"[help] html_render 失败，回退 Pillow 绘制: {e}")
+        return self._render_help_poster_pillow()
+
+    # ─── 帮助海报 · Pillow 兜底版 ──────────────────────────
+
+    def _find_cjk_font(self):
+        candidates = [
+            "/system/fonts/NotoSansCJK-Regular.ttc",
+            "/system/fonts/NotoSansCJK-Bold.ttc",
+            "/system/fonts/DroidSansFallback.ttf",
+            "/system/fonts/SourceHanSansCN-Regular.otf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "/System/Library/Fonts/PingFang.ttc",
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                return p
+        return None
+
+    def _wrap(self, text, font, max_width):
+        lines = []
+        for raw in str(text).split("\n"):
+            if raw == "":
+                lines.append("")
+                continue
+            cur = ""
+            for ch in raw:
+                if font.getlength(cur + ch) > max_width:
+                    lines.append(cur.rstrip())
+                    cur = ch
+                else:
+                    cur += ch
+            lines.append(cur.rstrip())
+        return lines
+
+    def _render_help_poster_pillow(self) -> str:
+        from PIL import Image, ImageDraw, ImageFont
+
+        font_path = self._find_cjk_font()
+
+        def F(size):
+            if font_path:
+                return ImageFont.truetype(font_path, size)
+            return ImageFont.load_default()
+
+        config_dir = self._config_dir()
+        names = sorted(p.stem for p in config_dir.glob("*.json")) if config_dir.exists() else []
+        cmds = self._load_commands()
+
+        sections = [
+            ("说人话", [
+                "懒得记指令？直接说人话「来张原神的图」「想看风景」",
+                "AI 自己会去搞定，你负责躺着欣赏就行",
+            ]),
+            ("基本指令", [
+                "/setu             随机来一张（默认 Lolicon）",
+                "/setu random      全随机：50 种图源×分类等概率",
+                "/setu 关键词       按标签搜，如 /setu 百合",
+                "/setu list        查看已保存的配置与指令",
+                "/setu help        召唤这本指南",
+            ]),
+            ("图源", [
+                "Lolicon(默认)  /setu 或 /setu 关键词",
+                "栗次元(alcy)   /setu alcy ycy / xhl(小狐狸) / ysz(原神) ...",
+                "UApiPro(uapipro) /setu uapipro acg / landscape(风景) ...",
+                "LoliAPI(loliapi) /setu loliapi acg / bg(墙纸) ...",
+                "imgapi        /setu imgapi meizi(美女) / dongman(动漫) ...",
+                "Bing(bing)     /setu bing（每日风景）",
+                "dmoe(dmoe)     /setu dmoe（二次元）",
+            ]),
+            ("网页面板", [
+                "快速获取   网页上点几下就能取图，还能勾选群一键发送",
+                "积木编程   把常用设置存成积木，组合成指令，一句话召唤整套图",
+                "调用记录   查看 AI 帮你取过什么图，详情可一键复制",
+            ]),
+        ]
+        if names:
+            sections.append(("已保存配置", ["   " + "    ".join(names)]))
+        if cmds:
+            sections.append(("已保存指令", [f"  {c['name']}（{'随机' if c['mode']=='random' else '分条' if c['mode']=='all' else '合并'} {len(c['presets'])}步）" for c in cmds]))
+
+        W = 860
+        PAD = 48
+        title_font = F(46)
+        sub_font = F(24)
+        sec_font = F(28)
+        body_font = F(24)
+        foot_font = F(22)
+        banner_h = 170
+        footer_h = 90
+        line_h = 38
+
+        content_h = 0
+        for title, lines in sections:
+            content_h += sec_font.size + 22 + 14
+            for line in lines:
+                content_h += len(self._wrap(line, body_font, W - PAD * 2 - 24)) * line_h + 6
+        total_h = banner_h + PAD + content_h + PAD + footer_h
+
+        img = Image.new("RGB", (W, total_h), "#faf7f2")
+        draw = ImageDraw.Draw(img)
+
+        draw.rectangle([0, 0, W, banner_h], fill="#161616")
+        t_title = "云笺寻图 · 使用指南"
+        tw = draw.textlength(t_title, font=title_font)
+        draw.text(((W - tw) / 2, 42), t_title, font=title_font, fill="#faf7f2")
+        t_sub = "不用记指令，直接说人话，图自己会来"
+        sw = draw.textlength(t_sub, font=sub_font)
+        draw.text(((W - sw) / 2, 108), t_sub, font=sub_font, fill="#ff4d2e")
+
+        y = banner_h + PAD
+        content_w = W - PAD * 2
+        for idx, (title, lines) in enumerate(sections, 1):
+            draw.text((PAD, y), f"{idx:02d}", font=sec_font, fill="#ff4d2e")
+            draw.text((PAD + 60, y), title, font=sec_font, fill="#161616")
+            y += sec_font.size + 22
+            for line in lines:
+                wrapped = self._wrap(line, body_font, content_w - 26)
+                for wline in wrapped:
+                    draw.text((PAD + 26, y), wline, font=body_font, fill="#33302b")
+                    y += line_h
+                y += 8
+            y += 14
+
+        draw.rectangle([0, total_h - footer_h, W, total_h], fill="#161616")
+        t_ft = "云笺寻图 · 一键取图 · 祝玩得开心"
+        fw = draw.textlength(t_ft, font=foot_font)
+        draw.text(((W - fw) / 2, total_h - footer_h + 28), t_ft, font=foot_font, fill="#faf7f2")
+
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        tmp.close()
+        img.save(tmp.name)
+        return tmp.name
 
     async def handle_send(self):
         try:
@@ -374,8 +888,11 @@ class MyPlugin(Star):
                         except Exception as e:
                             logger.warning(f"[send] download failed for {url[:80]}: {e}")
                             msg.append({"type": "image", "data": {"file": url}})
-                    t = img.get("title", ""); a = img.get("author", ""); p = img.get("pid", "")
-                    if t or a or p: msg.append({"type": "text", "data": {"text": f"\n{t} - {a} ({p})"}})
+                    t = img.get("title", ""); a = img.get("author", ""); p = img.get("pid", ""); cmd = img.get("command", "")
+                    parts_txt = []
+                    if t or a or p: parts_txt.append(f"{t} - {a} ({p})")
+                    if cmd: parts_txt.append(f"📌 指令：{cmd}")
+                    if parts_txt: msg.append({"type": "text", "data": {"text": "\n" + "\n".join(parts_txt)}})
                 await client.api.call_action("send_group_msg", group_id=int(gid), message=msg)
                 ok += 1
             except Exception as e:
@@ -396,7 +913,7 @@ class MyPlugin(Star):
         elif source == "alcy": return await self.fetch_alcy(body)
         else: return await self.fetch_lolicon(body)
 
-    async def _do_send_image(self, event, img, source_name=""):
+    async def _do_send_image(self, event, img, source_name="", command=""):
         url = img.get("url", "")
         if not url:
             await event.send("获取的图片 URL 为空，请重试")
@@ -419,6 +936,7 @@ class MyPlugin(Star):
         text = f"📷 {title}" if title else "随机图片"
         if author: text += f"\n👤 {author}"
         if source_name: text += f"\n🔗 来源: {source_name}"
+        if command: text += f"\n📌 指令：{command}"
         client = self._get_client()
         if client:
             try:
@@ -527,8 +1045,10 @@ class MyPlugin(Star):
         '''获取随机二次元/风景/美女图片并发送到群聊。
 
         Args:
-            source(string): 图源。lolicon(Pixiv插画) / uapipro(多分类壁纸) / bing(风景壁纸) / imgapi(随机壁纸) / dmoe(二次元) / loliapi(多分类二次元) / alcy(栗次元多分类)
+            source(string): 图源。lolicon(Pixiv插画) / uapipro(多分类壁纸) / bing(风景壁纸) / imgapi(随机壁纸) / dmoe(二次元) / loliapi(多分类二次元) / alcy(栗次元多分类) / random(全随机：50种图源×分类等概率)
             tag(string): 搜索标签或分类。不同图源的可选值如下：
+
+【random】全随机：从所有图源×分类结果池等概率抽取，tag 留空即可
 
 【lolicon】标签名，多个用逗号分隔，如"原神,泳装"
 
@@ -565,11 +1085,17 @@ class MyPlugin(Star):
             "tag": tag or "",
             "prompt": prompt,
             "result": "",
-            "detail": ""
+            "detail": "",
+            "api": "",
+            "raw": ""
         }
         try:
             source = source or "lolicon"
-            if source == "alcy":
+            if source == "random":
+                source, rbody = self._random_config()
+                rbody["num"] = 1
+                body = rbody
+            elif source == "alcy":
                 body = {"source": source, "num": 1, "alcyCategory": tag if tag else "random"}
             elif source == "loliapi":
                 body = {"source": source, "num": 1, "loliapiCategory": tag if tag else "random"}
@@ -593,20 +1119,27 @@ class MyPlugin(Star):
             if not data:
                 log_entry["result"] = "失败"
                 log_entry["detail"] = "没有找到图片"
+                log_entry["api"] = self._describe_api(source, body)
+                log_entry["raw"] = "[]"
                 yield event.plain_result("没有找到图片 😢")
                 return
-            await self._do_send_image(event, data[0], source)
+            cmd_str = self._cmd_for(source, body)
+            await self._do_send_image(event, data[0], source, cmd_str)
+            log_entry["source"] = source
+            log_entry["tag"] = cmd_str
             log_entry["result"] = "成功"
             log_entry["detail"] = data[0].get("title", "") + " - " + data[0].get("author", "")
+            log_entry["api"] = self._describe_api(source, body)
+            log_entry["raw"] = json.dumps(self._log_image_summary(data), ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"tool setu failed: {e}")
             log_entry["result"] = "失败"
             log_entry["detail"] = str(e)
+            log_entry["api"] = self._describe_api(source or "lolicon", {"source": source or "lolicon", "num": 1})
+            log_entry["raw"] = "[]"
             yield event.plain_result(f"获取失败: {str(e)}")
         finally:
-            self.llm_call_logs.insert(0, log_entry)
-            if len(self.llm_call_logs) > 100:
-                self.llm_call_logs = self.llm_call_logs[:100]
+            self._append_log(log_entry)
 
     # ─── 指令系统 ──────────────────────────
 
@@ -622,42 +1155,29 @@ class MyPlugin(Star):
             cmd = parts[1].lower()
 
             if cmd in ["help", "h", "帮助", "用法"]:
-                config_dir = self._config_dir()
-                names = [p.stem for p in config_dir.glob("*.json")] if config_dir.exists() else []
-                cmds = self._load_commands()
-                config_tip = ""
-                if names: config_tip = "\n".join(f"    · {n}" for n in names)
-                cmd_tip = ""
-                if cmds: cmd_tip = "\n".join(f"    · {c['name']}（{'随机' if c['mode']=='random' else '分条' if c['mode']=='all' else '合并'} {len(c['presets'])}个步骤）" for c in cmds)
-                yield event.plain_result(
-                    "📖 随机图片插件 · 完整帮助\n\n"
-                    "━━━ 💬 自然语言调用 ━━━\n\n"
-                    "直接对我说「发张二次元图」「来张原神」「看风景」「小狐狸」等，\n"
-                    "AI 会自动理解并调用插件获取图片，无需记指令！\n\n"
-                    "━━━ 📟 指令用法 ━━━\n\n"
-                    "▶ /setu\n  默认 Lolicon 随机图\n\n"
-                    "▶ /setu <标签>\n  Lolicon 按标签搜索，如 /setu 百合\n\n"
-                    "▶ /setu <图源>\n  切换图源，如 /setu alcy\n\n"
-                    "▶ /setu <图源> <分类>\n  切换图源并指定分类，如 /setu alcy xhl\n\n"
-                    "▶ /setu list\n  查看已保存的配置预设和指令\n\n"
-                    "▶ /setu help\n  显示本帮助\n\n"
-                    "━━━ 🎨 图源 & 分类一览 ━━━\n\n"
-                    "🎨 Lolicon\n  标签：任意关键词，如 原神,泳装\n  逗号表示 AND 搜索，竖线 | 表示 OR\n\n"
-                    "📦 UApiPro\n  主分类：二次元(acg) 风景(landscape) 动漫混合(anime)\n          电脑壁纸(pc_wallpaper) 手机壁纸(mobile_wallpaper)\n          动漫图(general_anime) AI绘画(ai_drawing)\n          表情包(bq) 福瑞(furry)\n  子分类（用+连接）：acg+pc acg+mb\n    bq+xiongmao bq+waiguoren bq+maomao bq+ikun bq+eciyuan\n    furry+z4k furry+szs8k furry+s4k furry+4k\n\n"
-                    "🌿 LoliAPI\n  acg(自适应) bg(墙纸) acg/pc(电脑) acg/pe(手机) acg/pp(头像)\n\n"
-                    "🎯 栗次元\n  ycy(自适应) moez(萌版) ai(AI) ysz(原神)\n  pc(横图) moe(萌横) fj(风景) bd(白底) ys(原横)\n  acg(动图) mp(竖图) moemp(萌竖) ysmp(原竖)\n  aimp(AI竖) fjmp(风竖) tx(头像) lai(胡桃) xhl(狐狸)\n\n"
-                    "🖼️ imgapi\n  meizi(美女) dongman(动漫) fengjing(风景) suiji(随机)\n\n"
-                    "🏔️ Bing · 🎨 dmoe\n  无分类，直接 /setu bing 或 /setu dmoe\n\n"
-                    "━━━ 🧩 WebUI 功能 ━━━\n\n"
-                    "在插件 WebUI 中还有更多功能：\n\n"
-                    "🔍 快速获取\n  可视化调参，7 个图源完整自定义选项，\n  选择图片后勾选群一键发送\n\n"
-                    "🧱 积木编程\n  ① 调好参数 → 保存为配置预设（积木块）\n  ② 组合多个积木块 → 保存为指令\n  ③ 支持三种输出模式：\n     · 随机选一个：每次随机挑一个积木块执行\n     · 分条输出：每个积木块发一条消息\n     · 合并输出：所有图片合并成一条消息\n  ④ 保存后可通过 /setu <指令名> 在群聊中调用\n\n"
-                    "📋 调用记录\n  查看 AI 调用插件的记录，点击可查看详情，\n  方便调试和追踪使用情况\n\n"
-                    "━━━ 📁 已保存的配置 ━━━\n"
-                    + (config_tip if config_tip else "    暂无，在 WebUI 调好参数后点击「保存配置」即可创建\n")
-                    + ("\n" if config_tip else "")
-                    + ("━━━ 📋 已保存的指令 ━━━\n" + cmd_tip + "\n" if cmd_tip else "")
-                )
+                # 生成并发送帮助海报图片（HTML 渲染 + Pillow 兜底）
+                try:
+                    poster = await self._render_help_poster()
+                except Exception as e:
+                    logger.error(f"[help] render failed: {e}")
+                    yield event.plain_result("帮助海报生成失败：" + str(e))
+                    return
+                client = self._get_client()
+                if client:
+                    try:
+                        await client.api.call_action(
+                            "send_group_msg",
+                            group_id=int(event.get_group_id()),
+                            message=[{"type": "image", "data": {"file": f"file://{poster}"}}]
+                        )
+                    except Exception as e:
+                        logger.error(f"[help] send failed: {e}")
+                        yield event.plain_result("帮助海报发送失败：" + str(e))
+                    finally:
+                        try: os.unlink(poster)
+                        except: pass
+                else:
+                    yield event.plain_result("无法发送帮助海报（客户端不可用），请在 WebUI 查看帮助")
                 return
 
             elif cmd in ["list", "ls", "列表"]:
@@ -669,6 +1189,50 @@ class MyPlugin(Star):
                 if cmds: lines.append("\n📋 指令：\n" + "\n".join(f"  {c['name']} ({'随机' if c['mode']=='random' else '分条' if c['mode']=='all' else '合并'} {len(c['presets'])}个步骤)" for c in cmds))
                 if not lines: yield event.plain_result("📂 暂无数据\n在 WebUI 点击「保存配置」即可创建")
                 else: yield event.plain_result("\n".join(lines))
+                return
+
+            elif cmd in ["random", "rand", "全随机", "随"]:
+                # 全随机：从 50 个结果池等概率抽取，发图并附带指令
+                yield event.plain_result("🎲 全随机抽取中（50 种图源×分类等概率）...")
+                log_entry = {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "user": str(event.get_sender_id()),
+                    "group": str(event.get_group_id()),
+                    "source": "random",
+                    "tag": "全随机",
+                    "prompt": event.message_str,
+                    "result": "",
+                    "detail": "",
+                    "api": "",
+                    "raw": ""
+                }
+                try:
+                    source, params = self._random_config()
+                    data = await self._fetch(source, params)
+                    if not data:
+                        log_entry["result"] = "失败"
+                        log_entry["detail"] = "没有找到图片"
+                        log_entry["api"] = self._describe_api(source, params)
+                        log_entry["raw"] = "[]"
+                        self._append_log(log_entry)
+                        yield event.plain_result("没有找到图片 😢")
+                        return
+                    cmd_str = self._cmd_for(source, params)
+                    await self._do_send_image(event, data[0], source, cmd_str)
+                    log_entry["source"] = source
+                    log_entry["tag"] = cmd_str
+                    log_entry["result"] = "成功"
+                    log_entry["detail"] = data[0].get("title", "") + " - " + data[0].get("author", "")
+                    log_entry["api"] = self._describe_api(source, params)
+                    log_entry["raw"] = json.dumps(self._log_image_summary(data), ensure_ascii=False, indent=2)
+                except Exception as e:
+                    logger.error(f"random setu failed: {e}")
+                    log_entry["result"] = "失败"
+                    log_entry["detail"] = str(e)
+                    log_entry["raw"] = "[]"
+                    yield event.plain_result(f"获取失败: {str(e)}")
+                finally:
+                    self._append_log(log_entry)
                 return
 
             elif not cmd.startswith("/"):
@@ -822,14 +1386,43 @@ class MyPlugin(Star):
                 tags = [t.strip() for t in tag_str.replace("，", ",").split(",") if t.strip()]
 
         yield event.plain_result("正在获取图片，请稍候...")
+        tag_str = ",".join(tags) if tags else (parts[1].lower() if len(parts) > 1 else "")
+        log_entry = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "user": str(event.get_sender_id()),
+            "group": str(event.get_group_id()),
+            "source": source,
+            "tag": tag_str,
+            "prompt": event.message_str,
+            "result": "",
+            "detail": "",
+            "api": "",
+            "raw": ""
+        }
         try:
             params = {"source": source, "num": 1, "r18": 0, "tag": tags, **extra_params}
             params = {k: v for k, v in params.items() if v is not None and v != "" and v != []}
             data = await self._fetch(source, params)
             if not data:
+                log_entry["result"] = "失败"
+                log_entry["detail"] = "没有找到图片"
+                log_entry["api"] = self._describe_api(source, params)
+                log_entry["raw"] = "[]"
                 yield event.plain_result("没有找到图片 😢")
                 return
-            await self._do_send_image(event, data[0], source)
+            cmd_str = self._cmd_for(source, params)
+            await self._do_send_image(event, data[0], source, cmd_str)
+            log_entry["result"] = "成功"
+            log_entry["tag"] = cmd_str
+            log_entry["detail"] = data[0].get("title", "") + " - " + data[0].get("author", "")
+            log_entry["api"] = self._describe_api(source, params)
+            log_entry["raw"] = json.dumps(self._log_image_summary(data), ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"setu command failed: {e}")
+            log_entry["result"] = "失败"
+            log_entry["detail"] = str(e)
+            log_entry["api"] = self._describe_api(source, {"source": source, "num": 1})
+            log_entry["raw"] = "[]"
             yield event.plain_result(f"获取图片失败: {str(e)}")
+        finally:
+            self._append_log(log_entry)
